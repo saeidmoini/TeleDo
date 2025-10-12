@@ -99,19 +99,7 @@ def get_main_menu_keyboard(chat_type: ChatType, is_admin: bool = False) -> Reply
             keyboards.append(
             [
                 KeyboardButton(text="/add"),
-                KeyboardButton(text="/user"),
-                
-            ])
-            keyboards.append(
-            [
-                KeyboardButton(text="/name"),
-                KeyboardButton(text="/des"),
-                
-            ])
-            keyboards.append(
-            [
-                KeyboardButton(text="/attach"),
-                KeyboardButton(text="/time"),
+                KeyboardButton(text="مدیریت کاربران"),
                 
             ])
         
@@ -124,26 +112,14 @@ def get_main_menu_keyboard(chat_type: ChatType, is_admin: bool = False) -> Reply
 
     else:
         keyboards.append(
-            [
-                KeyboardButton(text="/tasks"), 
-                
-            ])
+        [
+            KeyboardButton(text="/tasks"), 
+            
+        ])
         keyboards.append(
         [
             KeyboardButton(text="/add"),
-            KeyboardButton(text="/user"),
-            
-        ])
-        keyboards.append(
-        [
-            KeyboardButton(text="/name"),
-            KeyboardButton(text="/des"),
-            
-        ])
-        keyboards.append(
-        [
-            KeyboardButton(text="/attach"),
-            KeyboardButton(text="/time"),
+            KeyboardButton(text="مدیریت کاربران"),
             
         ])
 

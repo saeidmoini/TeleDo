@@ -260,6 +260,17 @@ class TaskService:
             UserTask.user_id == user_id
         ).all()
         return tasks
+    
+    @staticmethod
+    @exception_decorator
+    def get_task_by_id(db: Session, id: int) -> Task:
+        """
+        Retrieve all tasks assigned to a specific user.
+        """
+        tasks = db.query(Task).filter(
+            Task.id == id
+        ).first()
+        return tasks
 
 class TaskAttachmentService:
     

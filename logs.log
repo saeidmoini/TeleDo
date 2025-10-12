@@ -4337,3 +4337,454 @@ aiogram.exceptions.TelegramNetworkError: HTTP Client says - ClientOSError: [Errn
 2025-10-08 17:50:37 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
 2025-10-08 17:50:39 - dev_logger - INFO - on_startup: Bot started!
 2025-10-08 17:51:30 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-11 16:41:36 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-11 16:41:36 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-11 16:41:55 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-11 16:41:55 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-11 16:49:56 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 16:05:11 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 16:05:11 - dev_logger - ERROR - set_commands: Faild to add commands to bot
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 97, in _connect
+    stream = await connect_tcp(
+             ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_connect.py", line 16, in connect_tcp
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 1122, in create_connection
+    raise exceptions[0]
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 1104, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 1007, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/usr/lib/python3.12/asyncio/selector_events.py", line 651, in sock_connect
+    return await fut
+           ^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/selector_events.py", line 691, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('192.168.18.24', 3000)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 770, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 725, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 642, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1209, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1550, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 66, in _wrap_create_connection
+    return await self._connect_via_proxy(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 123, in _connect_via_proxy
+    stream = await proxy.connect(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 79, in connect
+    return await self._connect(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 104, in _connect
+    raise ProxyConnectionError(
+python_socks._errors.ProxyConnectionError: [Errno 111] Couldn't connect to proxy 192.168.18.24:3000 [Connect call failed ('192.168.18.24', 3000)]
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    async with session.post(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 1488, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 789, in _request
+    raise ClientOSError(*exc.args) from exc
+aiohttp.client_exceptions.ClientOSError: [Errno 111] Couldn't connect to proxy 192.168.18.24:3000 [Connect call failed ('192.168.18.24', 3000)]
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/main.py", line 44, in set_commands
+    await bot.set_my_commands(commands)
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 3702, in set_my_commands
+    return await self(call, request_timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 184, in make_request
+    raise TelegramNetworkError(method=method, message=f"{type(e).__name__}: {e}")
+aiogram.exceptions.TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 111] Couldn't connect to proxy 192.168.18.24:3000 [Connect call failed ('192.168.18.24', 3000)]
+2025-10-12 16:05:11 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 16:06:22 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 16:06:32 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 16:06:34 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 16:07:37 - dev_logger - ERROR - sync_wrapper: Error in get_user: UserService.get_user() missing 1 required positional argument: 'db'
+2025-10-12 18:28:13 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 18:39:54 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 18:39:56 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 18:42:42 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 18:42:46 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 18:42:49 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 18:42:56 - dev_logger - ERROR - view_users: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/user_handlers/add.py", line 38, in view_users
+    for user in users_generator:
+  File "/home/hamed/Documents/TaskPRJ/services/user_services.py", line 140, in get_all_users
+    query = db.query(User)
+            ^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/pydantic/main.py", line 991, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'Message' object has no attribute 'query'
+2025-10-12 18:42:56 - dev_logger - ERROR - view_users: Failed to close db
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/user_handlers/add.py", line 108, in view_users
+    db.close()
+    ^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/pydantic/main.py", line 991, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'Message' object has no attribute 'close'
+2025-10-12 18:48:00 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 18:48:05 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 18:48:06 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 18:55:33 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 18:55:38 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 18:55:40 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:00:10 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:00:14 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:00:16 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:02:13 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:02:17 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:02:18 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:03:15 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:03:20 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:03:21 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:03:28 - dev_logger - ERROR - view_users: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/user_handlers/add.py", line 45, in view_users
+    await message.delete()
+          ^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'delete'
+2025-10-12 19:03:49 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:03:53 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:03:55 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:05:19 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:05:26 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:05:28 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:05:55 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:05:59 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:06:00 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:08:58 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:09:03 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:09:04 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:09:07 - dev_logger - ERROR - handle_select_user: Failed to send notification message to user
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 994, in handle_select_user
+    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(text="دیدن تسک", callback_data=f"show_task|{task_id}")]])
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: BaseModel.__init__() takes 1 positional argument but 2 were given
+2025-10-12 19:11:49 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:11:54 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:11:56 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:13:25 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:13:29 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:13:32 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:14:25 - dev_logger - ERROR - handle_select_user: Failed to send notification message to user
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 992, in handle_select_user
+    await bot.send_message(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 2905, in send_message
+    call = SendMessage(
+           ^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/pydantic/main.py", line 253, in __init__
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 2 validation errors for SendMessage
+chat_id.int
+  Input should be a valid integer [type=int_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/int_type
+chat_id.str
+  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/string_type
+2025-10-12 19:14:26 - dev_logger - ERROR - handle_select_user: Failed to send notification message to user
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 992, in handle_select_user
+    await bot.send_message(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 2905, in send_message
+    call = SendMessage(
+           ^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/pydantic/main.py", line 253, in __init__
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 2 validation errors for SendMessage
+chat_id.int
+  Input should be a valid integer [type=int_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/int_type
+chat_id.str
+  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/string_type
+2025-10-12 19:14:27 - dev_logger - ERROR - handle_select_user: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 1004, in handle_select_user
+    await callback_query.answer(f"✅ کاربر @{username} اضافه شد")
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: query is too old and response timeout expired or query ID is invalid
+2025-10-12 19:14:27 - dev_logger - ERROR - handle_select_user: Failed to send error message
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 1004, in handle_select_user
+    await callback_query.answer(f"✅ کاربر @{username} اضافه شد")
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: query is too old and response timeout expired or query ID is invalid
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 1013, in handle_select_user
+    await callback_query.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: query is too old and response timeout expired or query ID is invalid
+2025-10-12 19:20:21 - dev_logger - ERROR - handle_view_task: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 354, in handle_view_task
+    await callback_query.message.edit_text(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message
+2025-10-12 19:20:21 - dev_logger - ERROR - handle_view_task: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 359, in handle_view_task
+    await callback_query.answer()
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: query is too old and response timeout expired or query ID is invalid
+2025-10-12 19:20:22 - dev_logger - ERROR - handle_view_task: Failed to send error message
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 359, in handle_view_task
+    await callback_query.answer()
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: query is too old and response timeout expired or query ID is invalid
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 365, in handle_view_task
+    await callback_query.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: query is too old and response timeout expired or query ID is invalid
+2025-10-12 19:20:22 - dev_logger - ERROR - handle_view_task: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 354, in handle_view_task
+    await callback_query.message.edit_text(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message
+2025-10-12 19:20:35 - dev_logger - ERROR - handle_select_user: Failed to send notification message to user
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 992, in handle_select_user
+    await bot.send_message(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 2905, in send_message
+    call = SendMessage(
+           ^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/pydantic/main.py", line 253, in __init__
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 2 validation errors for SendMessage
+chat_id.int
+  Input should be a valid integer [type=int_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/int_type
+chat_id.str
+  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/string_type
+2025-10-12 19:23:24 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:26:20 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:26:22 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:27:26 - dev_logger - ERROR - sync_wrapper: Error in del_user: Dependency rule on column 'users.id' tried to blank-out primary key column 'users_tasks.user_id' on instance '<UserTask at 0x7099b7124ec0>'
+2025-10-12 19:27:26 - dev_logger - ERROR - view_users: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/user_handlers/add.py", line 49, in view_users
+    for user in users_generator:
+  File "/home/hamed/Documents/TaskPRJ/services/user_services.py", line 142, in get_all_users
+    yield from query
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2843, in __iter__
+    result = self._iter()
+             ^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2365, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2241, in _execute_internal
+    conn = self._connection_for_bind(bind)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2110, in _connection_for_bind
+    return trans._connection_for_bind(engine, execution_options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 2, in _connection_for_bind
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/sqlalchemy/orm/state_changes.py", line 101, in _go
+    self._raise_for_prerequisite_state(fn.__name__, current_state)
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 973, in _raise_for_prerequisite_state
+    raise sa_exc.PendingRollbackError(
+sqlalchemy.exc.PendingRollbackError: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: Dependency rule on column 'users.id' tried to blank-out primary key column 'users_tasks.user_id' on instance '<UserTask at 0x7099b7124ec0>' (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-10-12 19:29:08 - dev_logger - ERROR - view_users: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/user_handlers/add.py", line 46, in view_users
+    await message.delete()
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: message to delete not found
+2025-10-12 19:31:51 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:31:56 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:31:57 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:33:58 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:34:06 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:34:07 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:47:03 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:48:35 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:48:37 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:50:23 - dev_logger - ERROR - view_users: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/user_handlers/add.py", line 46, in view_users
+    await message.delete()
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: message to delete not found
+2025-10-12 19:51:42 - dev_logger - INFO - on_shutdown: Bot stopped!

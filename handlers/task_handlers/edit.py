@@ -17,6 +17,7 @@ import datetime
 from aiogram.exceptions import TelegramBadRequest
 import re
 import uuid
+from config import config
 
 media_cache = {}
 
@@ -886,7 +887,7 @@ async def handle_add_user(callback_query: CallbackQuery, state: FSMContext):
         
         if callback_query.message.chat.type in ("group", "supergroup"):
             try:
-                # Get all chat members
+                # Get all chat members # TODO here we can't get all user. It is a problem
                 chat_members = await callback_query.message.bot.get_chat_administrators(callback_query.message.chat.id)
                 group_users = [member.user for member in chat_members if not member.user.is_bot]
 
@@ -956,6 +957,7 @@ async def handle_add_user(callback_query: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("select_user|"))
 async def handle_select_user(callback_query: CallbackQuery, state: FSMContext):
     """Handle user selection from suggested users"""
+    db = None
     try:
         username = callback_query.data.split("|")[1]
 
@@ -971,6 +973,7 @@ async def handle_select_user(callback_query: CallbackQuery, state: FSMContext):
             return
         
         db = next(get_db())
+        task = TaskService.get_task_by_id(db=db, id=task_id)
         
         # Find or create user
         user = UserService.get_or_create_user(db, username=username)
@@ -981,7 +984,21 @@ async def handle_select_user(callback_query: CallbackQuery, state: FSMContext):
         res = UserService.assign_user_to_task(db, user.id, task_id)
         if not res:
             await callback_query.answer("❌  خطا در افزودن کاربر به تسک")
-        
+
+        try:
+            bot = callback_query.bot
+            await bot.send_message(
+                chat_id=user.telegram_id,
+                text=f"شما به تسک {task.title} اضافه شدید",
+                reply_markup = InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text="دیدن تسک", callback_data=f"show_task|{task_id}")]
+                    ]
+                )
+            )
+        except Exception:
+            logger.exception("Failed to send notification message to user")
+
         await callback_query.answer(f"✅ کاربر @{username} اضافه شد")
         
         # Clear state
@@ -1494,6 +1511,12 @@ async def handle_short_edits(message: Message):
     db = None
     try:
         db = next(get_db())
+        if message.text != "/attach":
+            is_admin = UserService.is_admin(db=db, user_tID=message.from_user.id)
+            if not is_admin:
+                await message.delete()
+                em = await message.answer("شما دسترسی به اجرای این دستور را ندارید ❌")
+                await del_message(3, em)
 
         # Define command patterns with regex
         patterns = {
@@ -1596,6 +1619,8 @@ async def handle_short_edits(message: Message):
                     return
                 tasks = TaskService.get_all_tasks(db=db, group_id=group.id)
         else:
+            em = await message.answer("❌ اجرای این دستور فقط در گروه ممکن است")
+            await del_message(3, em)
             return
 
         # If no tasks found, notify user
@@ -1632,6 +1657,75 @@ async def handle_short_edits(message: Message):
             except Exception:
                 logger.exception("Failed to close DB session")
 
+# ===== Short Edit Commands Handler (User commands) =====
+@router.message(Command("user"))
+async def handle_short_users_edits(message: Message):
+    """A handler to add a user to a task"""
+    db = None
+    try:
+        db = next(get_db())  # Open a database session
+
+        # Check admin permission before proceeding
+        permission = await admin_require(db=db, message=message)
+        if not permission:
+            return
+        
+        await message.delete()
+
+        # Fetch tasks depending on chat type and topic
+        if message.chat.type in ("group", "supergroup"):
+            if message.is_topic_message:
+                topic = TaskService.get_topic(db=db, tID=str(message.message_thread_id))
+                if not topic:
+                    em = await message.answer("هیچ تسکی برای این تاپیک وجود ندارد")
+                    await del_message(3, message, em)
+                    return
+                tasks = TaskService.get_all_tasks(db=db, topic_id=topic.id)
+            else:
+                group = TaskService.get_group(db=db, tID=str(message.chat.id))
+                if not group:
+                    em = await message.answer("هیچ تسکی برای این گروه وجود ندارد")
+                    await del_message(3, message, em)
+                    return
+                tasks = TaskService.get_all_tasks(db=db, group_id=group.id)
+        else:
+            em = await message.answer("❌ اجرای این دستور فقط در گروه ممکن است")
+            await del_message(3, em)
+            return
+
+        # If no tasks found, notify user
+        if not tasks:
+            em = await message.answer("❌ هیچ تسکی پیدا نشد")
+            await del_message(3, em, message)
+            return
+        
+        # Prepare inline keyboard for selecting task
+        keyboard = []
+        for t in tasks:
+            keyboard.append([
+                InlineKeyboardButton(text=t.title, callback_data=f"add_user|{t.id}")
+            ])
+
+        await message.answer(
+            "تسک مورد نظر را برای اعمال این عملیات انتحاب کنید",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+        )
+
+    except Exception:
+        # Log unexpected errors
+        logger.exception("Unexpected error occurred")
+        try:
+            await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+        except Exception:
+            logger.exception("Failed to send error message")   
+    
+    finally:
+        # Always close the database connection
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db")
 
 # ===== Callback Handler for Short Edit =====
 @router.callback_query(F.data.startswith("short_edit|"))
@@ -1764,4 +1858,4 @@ async def short_edit_confirm(callback_query: CallbackQuery):
         try:
             await callback_query.answer("❌ خطا در اتمام عملیات")
         except Exception:
-            logger.exception("Failed to send error message")
+            logger.exception("Failed to send error message")          

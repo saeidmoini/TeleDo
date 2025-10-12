@@ -150,12 +150,10 @@ async def cmd_start_group(message: Message, state: FSMContext):
             return  # stop further execution until user provides the name
 
         # If the message is not inside a topic, just complete the group setup
-        keyboard = get_main_menu_keyboard(chat_type=ChatType.GROUP)
         await message.answer(
             f"✅ ربات با موفقیت راه اندازی شد!\n"
             f"گروه {message.chat.title} ثبت شد.\n"
-            f"شما به عنوان ادمین ثبت شدید.",
-            reply_markup=keyboard
+            f"شما به عنوان ادمین ثبت شدید."
         )
 
     except Exception:
