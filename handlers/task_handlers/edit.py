@@ -316,6 +316,7 @@ async def handle_view_task(callback_query: CallbackQuery, state: FSMContext = No
                     InlineKeyboardButton(text="🔙 بازگشت", callback_data="back_show"),
                 ],
                 [
+                    InlineKeyboardButton(text="📝 افزودن اتچمنت", callback_data=f"add_attachment|{task.id}"), 
                     InlineKeyboardButton(text="📝 دریافت اتچمنت", callback_data=f"get_attachments|{task.id}"), 
                 ],
             ]
@@ -884,26 +885,8 @@ async def handle_add_user(callback_query: CallbackQuery, state: FSMContext):
         if len(suggested_users) == 0:
             await callback_query.answer("⚠️ کاربری برای نمایش وجود ندارد ⚠️")
             return
-        
-        if callback_query.message.chat.type in ("group", "supergroup"):
-            try:
-                # Get all chat members # TODO here we can't get all user. It is a problem
-                chat_members = await callback_query.message.bot.get_chat_administrators(callback_query.message.chat.id)
-                group_users = [member.user for member in chat_members if not member.user.is_bot]
-
-                group_users_ids = {user.id for user in group_users}
-                suggested_users = [user.username for user in suggested_users if user.telegram_id in group_users_ids]
-
-                if len(suggested_users) == 0:
-                    await callback_query.answer("⚠️ کاربری برای نمایش وجود ندارد ⚠️")
-                    return
-
-            except Exception:
-                logger.exception("Failed to fetch group members for suggested users")
-                await callback_query.answer("❌ خطایی در پیدا کردن کاربران به وجود آمد")
-                return
-        else:
-            suggested_users = [user.username for user in suggested_users]
+        suggested_users = [user.username for user in suggested_users]
+            
         
         # Create inline keyboard with suggested users
         keyboard_buttons = []
@@ -1427,12 +1410,13 @@ async def handle_my_tasks(event: Message | CallbackQuery):
         db = next(get_db())
 
         # Get the User object
-        user = UserService.get_user(user_tID=telegram_id)
+        user = UserService.get_user(db=db, user_tID=telegram_id)
         if not user:
             if isinstance(event, CallbackQuery):
                 await event.answer("⚠️ شما در سیستم ثبت نشده‌اید", show_alert=True)
             else:
-                await event.answer("⚠️ شما در سیستم ثبت نشده‌اید")
+                em = await event.answer("⚠️ شما در سیستم ثبت نشده‌اید")
+                await del_message(3, em)
             return
 
         # Get tasks assigned to this user
@@ -1441,7 +1425,8 @@ async def handle_my_tasks(event: Message | CallbackQuery):
             if isinstance(event, CallbackQuery):
                 await event.answer("⚠️ هیچ تسکی برای شما وجود ندارد", show_alert=True)
             else:
-                await event.answer("⚠️ هیچ تسکی برای شما وجود ندارد")
+                em = await event.answer("⚠️ هیچ تسکی برای شما وجود ندارد")
+                await del_message(3, em)
             return
 
         # Build inline keyboard

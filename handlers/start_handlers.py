@@ -130,6 +130,12 @@ async def cmd_start_group(message: Message, state: FSMContext):
 
         # If the message was sent inside a topic (thread) within a supergroup
         if message.chat.type == "supergroup" and message.is_topic_message and (topicID := message.message_thread_id):
+            topic = TaskService.get_topic(db=db, tID=str(topicID))
+            if topic:
+                await message.answer(
+                    f"✅ ربات با موفقیت راه اندازی شد!\n"
+                )
+                return
             # Save temporary topic-related data into FSM context
             await state.update_data(group_id=group.id, topic_id=topicID)
             

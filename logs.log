@@ -4788,3 +4788,548 @@ Traceback (most recent call last):
     raise TelegramBadRequest(method=method, message=description)
 aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: message to delete not found
 2025-10-12 19:51:42 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:53:55 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:53:57 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:55:19 - dev_logger - ERROR - view_users: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 130, in _connect
+    await connector.connect(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_connectors/http_async.py", line 37, in connect
+    reply: http.ConnectReply = conn.receive(data)
+                               ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 148, in receive
+    return ConnectReply.loads(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 137, in loads
+    raise ReplyError(msg, error_code=status_code)
+python_socks._protocols.errors.ReplyError: 502 Bad Gateway
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/user_handlers/add.py", line 102, in view_users
+    await message.answer(f"👥 مدیریت کاربران (تعداد: {user_count})", reply_markup=keyboard)
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    async with session.post(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 1488, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 770, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 725, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 642, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1209, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1550, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 66, in _wrap_create_connection
+    return await self._connect_via_proxy(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 123, in _connect_via_proxy
+    stream = await proxy.connect(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 79, in connect
+    return await self._connect(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 143, in _connect
+    raise ProxyError(e, error_code=e.error_code)
+python_socks._errors.ProxyError: 502 Bad Gateway
+2025-10-12 19:55:19 - dev_logger - ERROR - view_users: Failed to send error message
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 130, in _connect
+    await connector.connect(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_connectors/http_async.py", line 37, in connect
+    reply: http.ConnectReply = conn.receive(data)
+                               ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 148, in receive
+    return ConnectReply.loads(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 137, in loads
+    raise ReplyError(msg, error_code=status_code)
+python_socks._protocols.errors.ReplyError: 502 Bad Gateway
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/user_handlers/add.py", line 102, in view_users
+    await message.answer(f"👥 مدیریت کاربران (تعداد: {user_count})", reply_markup=keyboard)
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    async with session.post(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 1488, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 770, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 725, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 642, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1209, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1550, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 66, in _wrap_create_connection
+    return await self._connect_via_proxy(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 123, in _connect_via_proxy
+    stream = await proxy.connect(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 79, in connect
+    return await self._connect(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 143, in _connect
+    raise ProxyError(e, error_code=e.error_code)
+python_socks._errors.ProxyError: 502 Bad Gateway
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 130, in _connect
+    await connector.connect(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_connectors/http_async.py", line 37, in connect
+    reply: http.ConnectReply = conn.receive(data)
+                               ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 148, in receive
+    return ConnectReply.loads(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 137, in loads
+    raise ReplyError(msg, error_code=status_code)
+python_socks._protocols.errors.ReplyError: 502 Bad Gateway
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/user_handlers/add.py", line 121, in view_users
+    await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    async with session.post(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 1488, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 770, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 725, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 642, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1209, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1550, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 66, in _wrap_create_connection
+    return await self._connect_via_proxy(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 123, in _connect_via_proxy
+    stream = await proxy.connect(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 79, in connect
+    return await self._connect(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 143, in _connect
+    raise ProxyError(e, error_code=e.error_code)
+python_socks._errors.ProxyError: 502 Bad Gateway
+2025-10-12 19:58:22 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:58:30 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:58:35 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:58:58 - dev_logger - ERROR - handle_select_user: Failed to send notification message to user
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 970, in handle_select_user
+    await bot.send_message(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 2905, in send_message
+    call = SendMessage(
+           ^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/pydantic/main.py", line 253, in __init__
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 2 validation errors for SendMessage
+chat_id.int
+  Input should be a valid integer [type=int_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/int_type
+chat_id.str
+  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/string_type
+2025-10-12 19:59:28 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 19:59:37 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 19:59:38 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 19:59:43 - dev_logger - ERROR - handle_view_task: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 354, in handle_view_task
+    await callback_query.message.edit_text(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Unsupported start tag "models.user" at byte offset 253
+2025-10-12 19:59:48 - dev_logger - ERROR - handle_view_task: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 354, in handle_view_task
+    await callback_query.message.edit_text(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 185, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Unsupported start tag "models.user" at byte offset 253
+2025-10-12 19:59:53 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 20:00:30 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 20:00:32 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 20:02:22 - dev_logger - ERROR - handle_select_user: Failed to send notification message to user
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/task_handlers/edit.py", line 972, in handle_select_user
+    await bot.send_message(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 2905, in send_message
+    call = SendMessage(
+           ^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/pydantic/main.py", line 253, in __init__
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 2 validation errors for SendMessage
+chat_id.int
+  Input should be a valid integer [type=int_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/int_type
+chat_id.str
+  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/string_type
+2025-10-12 20:05:17 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 20:05:22 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 20:05:24 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 20:05:27 - dev_logger - ERROR - sync_wrapper: Error in get_user: UserService.get_user() missing 1 required positional argument: 'db'
+2025-10-12 20:05:45 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 20:05:51 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 20:05:52 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 20:07:03 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 20:07:07 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 20:07:09 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 20:08:59 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 20:09:00 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 20:11:17 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 20:11:21 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 20:11:32 - dev_logger - ERROR - set_commands: Faild to add commands to bot
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 130, in _connect
+    await connector.connect(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_connectors/http_async.py", line 37, in connect
+    reply: http.ConnectReply = conn.receive(data)
+                               ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 148, in receive
+    return ConnectReply.loads(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 137, in loads
+    raise ReplyError(msg, error_code=status_code)
+python_socks._protocols.errors.ReplyError: 502 Bad Gateway
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/main.py", line 44, in set_commands
+    await bot.set_my_commands(commands)
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 3702, in set_my_commands
+    return await self(call, request_timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    async with session.post(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 1488, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 770, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 725, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 642, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1209, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1550, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 66, in _wrap_create_connection
+    return await self._connect_via_proxy(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 123, in _connect_via_proxy
+    stream = await proxy.connect(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 79, in connect
+    return await self._connect(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 143, in _connect
+    raise ProxyError(e, error_code=e.error_code)
+python_socks._errors.ProxyError: 502 Bad Gateway
+2025-10-12 20:11:32 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 20:11:49 - dev_logger - ERROR - cmd_start_group: Unexpected error occurred
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 130, in _connect
+    await connector.connect(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_connectors/http_async.py", line 37, in connect
+    reply: http.ConnectReply = conn.receive(data)
+                               ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 148, in receive
+    return ConnectReply.loads(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 137, in loads
+    raise ReplyError(msg, error_code=status_code)
+python_socks._protocols.errors.ReplyError: 502 Bad Gateway
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/start_handlers.py", line 94, in cmd_start_group
+    chat_member = await message.bot.get_chat_member(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 1653, in get_chat_member
+    return await self(call, request_timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    async with session.post(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 1488, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 770, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 725, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 642, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1209, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1550, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 66, in _wrap_create_connection
+    return await self._connect_via_proxy(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 123, in _connect_via_proxy
+    stream = await proxy.connect(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 79, in connect
+    return await self._connect(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 143, in _connect
+    raise ProxyError(e, error_code=e.error_code)
+python_socks._errors.ProxyError: 502 Bad Gateway
+2025-10-12 20:11:49 - dev_logger - ERROR - cmd_start_group: Failed to send error message
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 130, in _connect
+    await connector.connect(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_connectors/http_async.py", line 37, in connect
+    reply: http.ConnectReply = conn.receive(data)
+                               ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 148, in receive
+    return ConnectReply.loads(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 137, in loads
+    raise ReplyError(msg, error_code=status_code)
+python_socks._protocols.errors.ReplyError: 502 Bad Gateway
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/start_handlers.py", line 94, in cmd_start_group
+    chat_member = await message.bot.get_chat_member(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 1653, in get_chat_member
+    return await self(call, request_timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    async with session.post(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 1488, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 770, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 725, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 642, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1209, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1550, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 66, in _wrap_create_connection
+    return await self._connect_via_proxy(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 123, in _connect_via_proxy
+    stream = await proxy.connect(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 79, in connect
+    return await self._connect(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 143, in _connect
+    raise ProxyError(e, error_code=e.error_code)
+python_socks._errors.ProxyError: 502 Bad Gateway
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 130, in _connect
+    await connector.connect(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_connectors/http_async.py", line 37, in connect
+    reply: http.ConnectReply = conn.receive(data)
+                               ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 148, in receive
+    return ConnectReply.loads(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/_protocols/http.py", line 137, in loads
+    raise ReplyError(msg, error_code=status_code)
+python_socks._protocols.errors.ReplyError: 502 Bad Gateway
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/hamed/Documents/TaskPRJ/handlers/start_handlers.py", line 166, in cmd_start_group
+    await message.answer("❌ خطایی در راه اندازی ربات رخ داد.")
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    async with session.post(
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 1488, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 770, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/client.py", line 725, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 642, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1209, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp/connector.py", line 1550, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 66, in _wrap_create_connection
+    return await self._connect_via_proxy(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/aiohttp_socks/connector.py", line 123, in _connect_via_proxy
+    stream = await proxy.connect(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 79, in connect
+    return await self._connect(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hamed/Documents/TaskPRJ/venv/lib/python3.12/site-packages/python_socks/async_/asyncio/v2/_proxy.py", line 143, in _connect
+    raise ProxyError(e, error_code=e.error_code)
+python_socks._errors.ProxyError: 502 Bad Gateway
+2025-10-12 20:11:52 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 20:11:59 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 20:12:11 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 20:12:23 - dev_logger - ERROR - sync_wrapper: Error in get_topic: (psycopg2.errors.UndefinedFunction) operator does not exist: character varying = integer
+LINE 3: WHERE topics.telegram_id = 77 
+                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[SQL: SELECT topics.id AS topics_id, topics.telegram_id AS topics_telegram_id, topics.link AS topics_link, topics.name AS topics_name, topics.group_id AS topics_group_id 
+FROM topics 
+WHERE topics.telegram_id = %(telegram_id_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'telegram_id_1': 77, 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-10-12 20:12:50 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 20:12:54 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 20:12:57 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 20:16:03 - dev_logger - INFO - on_shutdown: Bot stopped!
+2025-10-12 20:16:07 - dev_logger - INFO - init_db: Tables already exist. Skipping creation.
+2025-10-12 20:16:08 - dev_logger - INFO - on_startup: Bot started!
+2025-10-12 20:19:01 - dev_logger - INFO - on_shutdown: Bot stopped!
