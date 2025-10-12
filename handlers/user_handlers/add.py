@@ -11,76 +11,99 @@ from services.user_services import UserService
 from config import config
 import re
 
-async def view_users(db, message: Message = None, original_message_id: int = None, callback_query: CallbackQuery = None, user_tID = None):
+@router.message(F.data == "مدیریت کاربران")
+async def view_users(db=None, message: Message = None, original_message_id: int = None, callback_query: CallbackQuery = None, user_tID = None):
     """
     Display all users with interactive action buttons.
     Shows promote/demote, delete, and info buttons for each user.
     """
-    
-    # Get users generator (excludes current user)
-    user_tID = message.from_user.id if message else user_tID
-    users_generator = UserService.get_all_users(db=db, user_tID=user_tID)
-    
-    # Initialize empty keyboard
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[])
-    user_count = 0
-    
-    # Process each user in the generator
-    for user in users_generator:
-        user_count += 1
+    try:
+        if db is None:
+            db = next
+        # Get users generator (excludes current user)
+        user_tID = message.from_user.id if message else user_tID
+        users_generator = UserService.get_all_users(db=db, user_tID=user_tID)
         
-        # Create appropriate button based on admin status
-        toggle_finish_callback = f"toggle_user|{user.id}|{user_tID}|{original_message_id}" if original_message_id else f"toggle_user|{user.id}|{user_tID}"
-        admin_button = InlineKeyboardButton(
-            text="⬇️ تبدیل به کاربر عادی" if user.is_admin else "⬆️ ادمین کردن", 
-            callback_data=toggle_finish_callback
-        )
+        # Initialize empty keyboard
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[])
+        user_count = 0
         
-        # Add user action buttons in one row
-        del_finish_callback = f"del_user|{user.id}|{user_tID}|{original_message_id}" if original_message_id else f"del_user|{user.id}|{user_tID}"
+        # Process each user in the generator
+        for user in users_generator:
+            user_count += 1
+            
+            # Create appropriate button based on admin status
+            toggle_finish_callback = f"toggle_user|{user.id}|{user_tID}|{original_message_id}" if original_message_id else f"toggle_user|{user.id}|{user_tID}"
+            admin_button = InlineKeyboardButton(
+                text="⬇️ تبدیل به کاربر عادی" if user.is_admin else "⬆️ ادمین کردن", 
+                callback_data=toggle_finish_callback
+            )
+            
+            # Add user action buttons in one row
+            del_finish_callback = f"del_user|{user.id}|{user_tID}|{original_message_id}" if original_message_id else f"del_user|{user.id}|{user_tID}"
+            keyboard.inline_keyboard.append([
+                admin_button,
+                InlineKeyboardButton(text="🗑 حذف", callback_data=del_finish_callback),
+                InlineKeyboardButton(text=f"👤 {user.username}", callback_data=f"info|{user.id}")
+            ])
+        
+        # Check if no users were found
+        if user_count == 0:
+            response = await message.answer("❌ هیچ کاربری پیدا نشد")
+            await del_message(3, response, message)
+            return
+        
+        # Add finish operation button at the bottom
+        finish_callback = f"finish_operation|{original_message_id}" if original_message_id else "finish_operation"
         keyboard.inline_keyboard.append([
-            admin_button,
-            InlineKeyboardButton(text="🗑 حذف", callback_data=del_finish_callback),
-            InlineKeyboardButton(text=f"👤 {user.username}", callback_data=f"info|{user.id}")
+            InlineKeyboardButton(text="اتمام عملیات ✅", callback_data=finish_callback),
         ])
-    
-    # Check if no users were found
-    if user_count == 0:
-        response = await message.answer("❌ هیچ کاربری پیدا نشد")
-        await del_message(3, response, message)
-        return
-    
-    # Add finish operation button at the bottom
-    finish_callback = f"finish_operation|{original_message_id}" if original_message_id else "finish_operation"
-    keyboard.inline_keyboard.append([
-        InlineKeyboardButton(text="اتمام عملیات ✅", callback_data=finish_callback),
-    ])
 
-    # Add refresh operation button at the bottom
-    refresh_callback = f"refresh_operation|{original_message_id}|{user_tID}"
-    keyboard.inline_keyboard.append([
-        InlineKeyboardButton(text="رفرش 🔄", callback_data=refresh_callback),
-    ])
-    
-    # Send the message with user list
-    if callback_query is None:
-        await message.answer(
-            f"👥 مدیریت کاربران (تعداد: {user_count})",
-            reply_markup=keyboard
-        )
-    else:
-        try:
-            await callback_query.message.edit_text(
+        # Add refresh operation button at the bottom
+        refresh_callback = f"refresh_operation|{original_message_id}|{user_tID}"
+        keyboard.inline_keyboard.append([
+            InlineKeyboardButton(text="رفرش 🔄", callback_data=refresh_callback),
+        ])
+        
+        # Send the message with user list
+        if callback_query is None:
+            await message.answer(
                 f"👥 مدیریت کاربران (تعداد: {user_count})",
                 reply_markup=keyboard
             )
-            await callback_query.answer()
-        except TelegramBadRequest:
-            await callback_query.answer("رفرش با موفقیت انجام شد 🔄")
+        else:
+            try:
+                await callback_query.message.edit_text(
+                    f"👥 مدیریت کاربران (تعداد: {user_count})",
+                    reply_markup=keyboard
+                )
+                await callback_query.answer()
+            except TelegramBadRequest:
+                await callback_query.answer("رفرش با موفقیت انجام شد 🔄")
+            except Exception:
+                logger.exception("Faild to edit user-management message after refresh")
+                await callback_query.answer("❌ مشکلی در رفرش به وجود آمد")
+    except Exception:
+        # Log unexpected errors
+        logger.exception("Unexpected error occurred")
+        try:
+            if message:
+                await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            elif callback_query:
+                await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            else:
+                return
         except Exception:
-            logger.exception("Faild to edit user-management message after refresh")
-            await callback_query.answer("❌ مشکلی در رفرش به وجود آمد")
-
+            logger.exception("Failed to send error message")   
+    
+    finally:
+        # Always close the database connection
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db")
+                
 async def add_user_with_reply(db, message: Message):
     """Add a user by replying to a message containing their username"""
     original_text = message.reply_to_message.text
