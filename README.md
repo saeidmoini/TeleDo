@@ -1,8 +1,8 @@
-# TaskManagerBot
+# TeleDo
 
 ## Description
 
-TaskManagerBot is a Telegram bot designed to simplify task management within Telegram groups. It allows users to create, assign, and track tasks directly within their group chats, eliminating the need to switch between different applications.
+TeleDo is a Telegram bot designed to simplify task management within Telegram groups. It allows users to create, assign, and track tasks directly within their group chats, eliminating the need to switch between different applications.
 
 ## Features
 
