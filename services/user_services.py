@@ -37,13 +37,17 @@ class UserService:
         """
         Retrieve a user by username or Telegram ID.
         If the user does not exist, create a new one.
-        Updates admin status and Telegram ID if user already exists.
+        Updates Telegram ID if user already exists. Does not demote existing admins.
         """
         if not username:
             return None
+        user = None
+
+        # Prefer lookup by telegram_id if provided
         if telegram_id:
-            user = db.query(User).filter(User.telegram_id == telegram_id).first()
-        else:
+            user = db.query(User).filter(User.telegram_id == str(telegram_id)).first()
+        # Fallback to username lookup
+        if user is None:
             user = db.query(User).filter(User.username == username).first()
 
         if not user:
@@ -51,8 +55,10 @@ class UserService:
             db.add(user)
 
         if telegram_id:
-            user.telegram_id = telegram_id
-        user.is_admin = is_admin
+            user.telegram_id = str(telegram_id)
+
+        # Only promote, never demote existing admin status here
+        user.is_admin = user.is_admin or is_admin
         
         db.commit()
         db.refresh(user)

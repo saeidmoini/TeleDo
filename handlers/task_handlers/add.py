@@ -54,7 +54,7 @@ async def add_task(message: Message):
                 topic = topic.id
 
         # User replied to another message
-        if message.reply_to_message and message.reply_to_message.text and message.reply_to_message.from_user.username and message.reply_to_message.from_user.username != config.BOT_USERNAME:
+        if message.reply_to_message and message.reply_to_message.text and not (message.reply_to_message.from_user and message.reply_to_message.from_user.is_bot):
             original_text = message.reply_to_message.text
             if original_text and type(original_text) == str:
                 original_text = original_text.strip()
@@ -84,11 +84,9 @@ async def add_task(message: Message):
         # Invalid usage of /add command
         else:
             response = await message.answer(
-                "❌\n"
-                " دستور شما معتبر نیست برای استفاده\n"
-                "از این دستو از راههای زیر استفاده کنید\n"
-                "/add [نام تسک] :راه اول \n"
-                "راه دوم : فرستادن /add در ریپلای به یک پیام"
+                "❌ دستور شما معتبر نیست.\n"
+                "برای اضافه کردن تسک دستور را به شکل `/add عنوان_تسک` ارسال کنید.\n"
+                "یا ابتدا یک پیام متنی بفرستید و سپس روی همان پیام ریپلای کرده و /add را ارسال کنید."
             )
             # Delete response and message after 3 seconds
             await del_message(3, response, message)
@@ -134,7 +132,7 @@ async def add_task_in_private(message: Message, state: FSMContext):
             return
 
         # User replied to another message
-        if message.reply_to_message and message.reply_to_message.text and message.reply_to_message.from_user.username and message.reply_to_message.from_user.username != config.BOT_USERNAME:
+        if message.reply_to_message and message.reply_to_message.text and not (message.reply_to_message.from_user and message.reply_to_message.from_user.is_bot):
             original_text = message.reply_to_message.text
             if original_text and type(original_text) == str:
                 original_text = original_text.strip()

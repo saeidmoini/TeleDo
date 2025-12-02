@@ -18,8 +18,45 @@ from aiogram.exceptions import TelegramBadRequest
 import re
 import uuid
 from config import config
+from utils.date_utils import gregorian_to_jalali, jalali_to_gregorian
+from utils.texts import t
 
 media_cache = {}
+
+
+async def _send_attachment_notification(callback_obj, task, attachment_id, added_by_admin: bool):
+    """Send only the new attachment to relevant users."""
+    db = next(get_db())
+    try:
+        recipients = []
+        admin_user = UserService.get_user(db=db, user_ID=task.admin_id)
+        assigned_users = TaskService.get_task_users(db=db, task_id=task.id) or []
+
+        if added_by_admin:
+            recipients = [u for u in assigned_users if u.telegram_id]
+        else:
+            if admin_user and admin_user.telegram_id:
+                recipients = [admin_user]
+
+        if not recipients:
+            return
+
+        # Send the new attachment itself, not previous ones
+        for user in recipients:
+            try:
+                text_msg = t("notify_attachment_to_user", title=task.title) if added_by_admin else t("notify_attachment_to_admin", title=task.title)
+                if attachment_id.startswith("AgAC"):
+                    await callback_obj.bot.send_photo(chat_id=user.telegram_id, photo=attachment_id, caption=text_msg)
+                else:
+                    await callback_obj.bot.send_document(chat_id=user.telegram_id, document=attachment_id, caption=text_msg)
+            except Exception:
+                logger.exception("Failed to send attachment notification")
+                continue
+    finally:
+        try:
+            db.close()
+        except Exception:
+            logger.exception("Failed to close db in notification helper")
 
 
 @exception_decorator
@@ -267,8 +304,8 @@ async def handle_task_manage(event: Message | CallbackQuery):
 @router.callback_query(F.data.startswith("view_task|"))
 @router.callback_query(F.data.startswith("show_task|"))
 async def handle_view_task(callback_query: CallbackQuery, state: FSMContext = None):
-    """Handle view task callback"""   
-    db = None 
+    """Handle view task callback"""
+    db = None
     try:
         show_type = callback_query.data.split("|")[0]
         task_id = int(callback_query.data.split("|")[1])
@@ -277,99 +314,201 @@ async def handle_view_task(callback_query: CallbackQuery, state: FSMContext = No
 
         db = next(get_db())
         task = TaskService.get_task_by_id(db=db, id=task_id)
+
+        if not task:
+            await callback_query.answer(t("task_not_found"))
+            return
+
         admin = UserService.get_user(db, user_ID=task.admin_id)
         group = TaskService.get_group(db, task.group_id)
         topic = TaskService.get_topic(db=db, id=task.topic_id)
-            
-        
-        if not task or not admin:
-            await callback_query.answer("❌ تسک یافت نشد")
-            return
-        
-        # Create task management buttons
-        keyboard_buttons = [
-            [
-                InlineKeyboardButton(text="🔙 بازگشت", callback_data="back"),
-                InlineKeyboardButton(text="🗑️ حذف تسک", callback_data=f"delete_task|{task.id}"),
-            ],
-            [
-                InlineKeyboardButton(text="👥 افزودن کاربر", callback_data=f"add_user|{task.id}"), 
-                InlineKeyboardButton(text="👥 حذف کاربر", callback_data=f"del_users|{task.id}")
-            ],
-            [
-                InlineKeyboardButton(text="👥 کاربران", callback_data=f"view_task_users|{task.id}"),
-                InlineKeyboardButton(text="⏰ ویرایش زمان پایان", callback_data=f"edit_end|{task.id}")
-            ],
-            [
-                InlineKeyboardButton(text="📝 ویرایش توضیحات", callback_data=f"edit_desc|{task.id}"), 
-                InlineKeyboardButton(text="📋 ویرایش نام", callback_data=f"edit_name|{task.id}")
-            ],
-            [
-                InlineKeyboardButton(text="📝 افزودن اتچمنت", callback_data=f"add_attachment|{task.id}"), 
-                InlineKeyboardButton(text="📝 دریافت اتچمنت", callback_data=f"get_attachments|{task.id}"), 
-            ],
-        ]
+        current_user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+        is_admin = bool(current_user and current_user.is_admin)
+        is_assigned = bool(current_user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=current_user.id))
 
-        if show_type == "show_task":
+        if not admin:
+            await callback_query.answer(t("admin_not_found"))
+            return
+
+        if not is_admin and not is_assigned and show_type != "view_task":
+            await callback_query.answer(t("access_denied_task"), show_alert=True)
+            return
+
+        if is_admin and show_type == "view_task":
             keyboard_buttons = [
-                [
-                    InlineKeyboardButton(text="🔙 بازگشت", callback_data="back_show"),
-                ],
-                [
-                    InlineKeyboardButton(text="📝 افزودن اتچمنت", callback_data=f"add_attachment|{task.id}"), 
-                    InlineKeyboardButton(text="📝 دریافت اتچمنت", callback_data=f"get_attachments|{task.id}"), 
-                ],
+                [InlineKeyboardButton(text=t("btn_back"), callback_data="back"), InlineKeyboardButton(text=t("btn_delete_task"), callback_data=f"delete_task|{task.id}")],
+                [InlineKeyboardButton(text=t("btn_add_user"), callback_data=f"add_user|{task.id}"), InlineKeyboardButton(text=t("btn_remove_users"), callback_data=f"del_users|{task.id}")],
+                [InlineKeyboardButton(text=t("btn_view_assigned"), callback_data=f"view_task_users|{task.id}"), InlineKeyboardButton(text=t("btn_set_deadline"), callback_data=f"edit_end|{task.id}")],
+                [InlineKeyboardButton(text=t("btn_edit_desc"), callback_data=f"edit_desc|{task.id}"), InlineKeyboardButton(text=t("btn_edit_name"), callback_data=f"edit_name|{task.id}")],
+                [InlineKeyboardButton(text=t("btn_add_attachment"), callback_data=f"add_attachment|{task.id}"), InlineKeyboardButton(text=t("btn_get_attachments"), callback_data=f"get_attachments|{task.id}")],
+                [InlineKeyboardButton(text=t("btn_update_status"), callback_data=f"choose_status|{task.id}|{show_type}")],
+            ]
+        else:
+            back_cb = "back_show" if show_type == "show_task" else "back"
+            keyboard_buttons = [
+                [InlineKeyboardButton(text=t("btn_back"), callback_data=back_cb)],
+                [InlineKeyboardButton(text=t("btn_add_attachment"), callback_data=f"add_attachment|{task.id}"), InlineKeyboardButton(text=t("btn_get_attachments"), callback_data=f"get_attachments|{task.id}")],
+                [InlineKeyboardButton(text=t("btn_update_status"), callback_data=f"choose_status|{task.id}|{show_type}")],
             ]
 
-        
         inline_keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
-        # Get all users assigned to this task
         assigned_users = TaskService.get_task_users(db=db, task_id=task_id)
-        
-        # Create message text for assigned_users
         if assigned_users:
-            users_text = "👥 کاربران اختصاص داده شده به این تسک:\n\n"
-            for i, user in enumerate(assigned_users, 1):
-                users_text += f"{i}. {user.username}\n"
+            users_text = t("assigned_users_title") + "\n\n" + "\n".join(f"{i}. {u.username}" for i, u in enumerate(assigned_users, 1))
         else:
-            users_text = "📝 هیچ کاربری به این تسک اختصاص داده نشده است."
-        
-        text = [
-            f"📋 {task.title}\n\n",
-            f"مدیر : @{admin.username}\n",
-            f"📝 توضیحات: {task.description or 'بدون توضیح'}\n",
-            f"📅 شروع: {task.start_date.strftime('%Y-%m-%d') if task.start_date else 'تعیین نشده'}\n",
-            f"📅 پایان: {task.end_date.strftime('%Y-%m-%d') if task.end_date else 'تعیین نشده'}\n",
-            f"🔧 وضعیت: {task.status}\n\n",
-            users_text,
-        ]
-        if topic:
-            text.insert(2, f"تاپیک : {topic.name} - {topic.link}\n")
-        if group:
-            text.insert(2, f"گروه : {group.name}\n")
+            users_text = t("assigned_users_none")
 
-        text = "".join(text)
+        start_jalali = gregorian_to_jalali(task.start_date)
+        end_jalali = gregorian_to_jalali(task.end_date)
 
-        # Edit previous message
-        await callback_query.message.edit_text(
-            text=text,
-            reply_markup=inline_keyboard
+        group_line = f"Group: {group.name}\n" if group else ""
+        topic_line = f"Topic: {topic.name} - {topic.link}\n" if topic else ""
+        desc = task.description or t("not_set")
+        body = t(
+            "task_view_template",
+            title=task.title,
+            admin=admin.username,
+            group_line=group_line,
+            topic_line=topic_line,
+            description=desc,
+            start=start_jalali,
+            end=end_jalali,
+            status=task.status,
+            users=users_text,
         )
-        
+
+        await callback_query.message.edit_text(body, reply_markup=inline_keyboard)
         await callback_query.answer()
-        
+
     except Exception:
-        # Log unexpected errors
         logger.exception("Unexpected error occurred")
         try:
-            await callback_query.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await callback_query.answer(t("generic_error"))
         except Exception:
-            logger.exception("Failed to send error message")   
-    
+            logger.exception("Failed to send error message")
+
     finally:
-        # Always close the database connection
         if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db")
+
+
+STATUS_CHOICES = [
+    ("pending", "Pending"),
+    ("in_progress", "In progress"),
+    ("done", "Done"),
+    ("blocked", "Blocked"),
+]
+
+
+@router.callback_query(F.data.startswith("choose_status|"))
+async def handle_choose_status(callback_query: CallbackQuery):
+    """Show status options for admins or assigned users."""
+    db = None
+    try:
+        parts = callback_query.data.split("|")
+        task_id = int(parts[1])
+        show_type = parts[2] if len(parts) > 2 else "view_task"
+
+        db = next(get_db())
+        task = TaskService.get_task_by_id(db=db, id=task_id)
+        user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+        is_admin = bool(user and user.is_admin)
+        is_assigned = bool(user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=user.id)) if user else False
+
+        if not task:
+            await callback_query.answer(t("task_not_found"))
+            return
+        if not is_admin and not is_assigned:
+            await callback_query.answer(t("status_update_forbidden"), show_alert=True)
+            return
+
+        keyboard_rows = []
+        for i in range(0, len(STATUS_CHOICES), 2):
+            row = []
+            for status_value, status_label in STATUS_CHOICES[i:i+2]:
+                row.append(
+                    InlineKeyboardButton(
+                        text=status_label,
+                        callback_data=f"change_status|{task_id}|{status_value}|{show_type}"
+                    )
+                )
+            keyboard_rows.append(row)
+
+        keyboard_rows.append([InlineKeyboardButton(text=t("btn_cancel"), callback_data=f"{show_type}|{task_id}")])
+
+        await callback_query.message.answer(
+            t("choose_status_prompt"),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+        )
+        await callback_query.answer()
+
+    except Exception:
+        logger.exception("Unexpected error occurred")
+        try:
+            await callback_query.answer(t("generic_error"))
+        except Exception:
+            logger.exception("Failed to send error message")
+    finally:
+        if db:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db")
+
+
+@router.callback_query(F.data.startswith("change_status|"))
+async def handle_change_status(callback_query: CallbackQuery):
+    """Apply a new status to a task."""
+    db = None
+    try:
+        parts = callback_query.data.split("|")
+        task_id = int(parts[1])
+        new_status = parts[2]
+        show_type = parts[3] if len(parts) > 3 else "view_task"
+
+        db = next(get_db())
+        task = TaskService.get_task_by_id(db=db, id=task_id)
+        user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+        is_admin = bool(user and user.is_admin)
+        is_assigned = bool(user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=user.id)) if user else False
+
+        if not task:
+            await callback_query.answer(t("task_not_found"))
+            return
+        if not is_admin and not is_assigned:
+            await callback_query.answer(t("status_update_forbidden"), show_alert=True)
+            return
+
+        res = TaskService.update_status(db=db, task_id=task_id, status=new_status)
+        if res == "NOT_EXIST":
+            await callback_query.answer(t("task_not_found"))
+            return
+        if not res:
+            await callback_query.answer(t("status_update_failed"))
+            return
+
+        await callback_query.answer(t("status_updated"))
+        try:
+            await callback_query.message.delete()
+        except Exception:
+            logger.exception("Failed to delete status selection message")
+        # Refresh the task view
+        target = "show_task" if show_type == "show_task" else "view_task"
+        mock_callback = get_callback(callback_query, f"{target}|{task_id}")
+        await handle_view_task(mock_callback)
+
+    except Exception:
+        logger.exception("Unexpected error occurred")
+        try:
+            await callback_query.answer("Unexpected error occurred")
+        except Exception:
+            logger.exception("Failed to send error message")
+    finally:
+        if db:
             try:
                 db.close()
             except Exception:
@@ -681,7 +820,7 @@ async def handle_edit_end(callback_query: CallbackQuery, state: FSMContext):
 
         # If task does not exist
         if not task:
-            await callback_query.answer("❌ Task not found")
+            await callback_query.answer(t("task_not_found"))
             return
         
         # Save task_id and the message_id of the bot's message into FSM state
@@ -695,12 +834,11 @@ async def handle_edit_end(callback_query: CallbackQuery, state: FSMContext):
         
         # Ask user to enter new date
         await callback_query.message.edit_text(
-            f"📝 تغییر تاریخ پایان تسک: {task.title}\n\n"
-            "لطفاً تاریخ پایان جدید را وارد کنید (YYYY-MM-DD)",
+            t("deadline_prompt", title=task.title),
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[[
                     InlineKeyboardButton(
-                        text="🔙 Back",
+                        text=t("btn_back"),
                         callback_data=f"view_task|{task_id}"
                     )
                 ]]
@@ -741,10 +879,9 @@ async def process_edit_end(message: Message, state: FSMContext):
         callback_message_id = data.get("callback_message_id")
         prev_error_msg_id = data.get("error_message_id")
 
-        # Try to parse date (YYYY-MM-DD)
-        try:
-            new_end = datetime.datetime.strptime(date_text, "%Y-%m-%d")
-        except ValueError:
+        # Try to parse Jalali date (YYYY-MM-DD)
+        new_end = jalali_to_gregorian(date_text)
+        if not new_end:
             # Delete user's wrong message
             try:
                 await message.delete()
@@ -764,7 +901,7 @@ async def process_edit_end(message: Message, state: FSMContext):
             # Send new error message and store its id
             try:
                 err_msg = await message.answer(
-                    "❌ فرمت تاریخ اشتباه است. لطفاً دوباره وارد کنید (YYYY-MM-DD)."
+                    t("deadline_invalid_format")
                 )
                 await state.update_data(error_message_id=err_msg.message_id)
             except Exception:
@@ -782,11 +919,11 @@ async def process_edit_end(message: Message, state: FSMContext):
 
         # Decide response text based on result
         if res:
-            text = "✅ تاریخ پایان تسک با موفقیت تغییر کرد"
+            text = t("deadline_update_success")
         elif res == "NOT_EXIST":
-            text = "❌ تسک مورد نظر وجود ندارد"
+            text = t("deadline_update_not_exist")
         else:
-            text = "❌ تغییر تاریخ پایان تسک با خطا مواجه شد"
+            text = t("deadline_update_failed")
 
 
         # Delete user's message (the date they typed)
@@ -970,15 +1107,16 @@ async def handle_select_user(callback_query: CallbackQuery, state: FSMContext):
 
         try:
             bot = callback_query.bot
-            await bot.send_message(
-                chat_id=user.telegram_id,
-                text=f"شما به تسک {task.title} اضافه شدید",
-                reply_markup = InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text="دیدن تسک", callback_data=f"show_task|{task_id}")]
-                    ]
+            if user.telegram_id:
+                await bot.send_message(
+                    chat_id=user.telegram_id,
+                    text=f"شما به تسک {task.title} اضافه شدید",
+                    reply_markup = InlineKeyboardMarkup(
+                        inline_keyboard=[
+                            [InlineKeyboardButton(text="دیدن تسک", callback_data=f"show_task|{task_id}")]
+                        ]
+                    )
                 )
-            )
         except Exception:
             logger.exception("Failed to send notification message to user")
 
@@ -1253,10 +1391,24 @@ async def handle_add_attachment(callback_query: CallbackQuery, state: FSMContext
     Start attachment adding mode for a task.
     After this, any file or supported message type will be stored as attachment.
     """
+    db = None
     try:
         # Extract task_id from callback_data
         # Format example: add_attachment|<task_id>
         task_id = int(callback_query.data.split("|")[1])
+
+        db = next(get_db())
+        task = TaskService.get_task_by_id(db=db, id=task_id)
+        user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+        is_admin = bool(user and user.is_admin)
+        is_assigned = bool(user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=user.id)) if user else False
+
+        if not task:
+            await callback_query.answer(t("task_not_found"))
+            return
+        if not is_admin and not is_assigned:
+            await callback_query.answer(t("attachments_add_forbidden"), show_alert=True)
+            return
 
         # Store in state that we are adding attachments for this task
         await state.update_data(
@@ -1266,12 +1418,11 @@ async def handle_add_attachment(callback_query: CallbackQuery, state: FSMContext
 
         # Edit current message to notify user
         await callback_query.message.edit_text(
-            "📎 از این به بعد هر فایلی یا پیامی که ارسال کنید به عنوان اتچمنت اضافه می‌شود.\n"
-            "برای پایان افزودن، دکمه بازگشت را فشار دهید.",
+            t("attachments_add_prompt"),
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[[
                     InlineKeyboardButton(
-                        text="🔙 بازگشت",
+                        text=t("btn_back"),
                         callback_data=f"view_task|{task_id}"
                     )
                 ]]
@@ -1284,9 +1435,15 @@ async def handle_add_attachment(callback_query: CallbackQuery, state: FSMContext
     except Exception:
         logger.exception("Unexpected error occurred")
         try:
-            await callback_query.answer("❌ خطا رخ داد. دوباره تلاش کنید.")
+            await callback_query.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send callback error message")
+    finally:
+        if db:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db")
 
 
 @router.message(F.document | F.photo | F.video | F.audio | F.voice)
@@ -1325,16 +1482,22 @@ async def handle_new_attachment(message: Message, state: FSMContext):
             return
 
         # Save attachment to database
-        TaskAttachmentService.add_attachment(db=db, task_id=task_id, attachment_id=attachment_id)
+        added = TaskAttachmentService.add_attachment(db=db, task_id=task_id, attachment_id=attachment_id)
 
         # Optionally notify user
-        msg = await message.answer("✅ فایل به عنوان اتچمنت اضافه شد")
-        await del_message(3, msg)
+        if added:
+            msg = await message.answer(t("attachments_added"))
+            await del_message(3, msg)
+            # Notify admin or assigned users
+            task = TaskService.get_task_by_id(db=db, id=task_id)
+            adder_user = UserService.get_user(db=db, user_tID=str(message.from_user.id))
+            added_by_admin = bool(adder_user and adder_user.is_admin)
+            await _send_attachment_notification(message, task, attachment_id, added_by_admin)
 
     except Exception:
         logger.exception("Unexpected error occurred")
         try:
-            await message.answer("❌ خطا در افزودن فایل به اتچمنت")
+            await message.answer(t("attachments_add_error"))
         except Exception:
             logger.exception("Failed to send error message")
     
@@ -1358,11 +1521,23 @@ async def handle_get_attachments(callback_query: CallbackQuery):
         task_id = int(callback_query.data.split("|")[1])
         db = next(get_db())
 
+        task = TaskService.get_task_by_id(db=db, id=task_id)
+        user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+        is_admin = bool(user and user.is_admin)
+        is_assigned = bool(user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=user.id)) if user else False
+
+        if not task:
+            await callback_query.answer(t("task_not_found"))
+            return
+        if not is_admin and not is_assigned:
+            await callback_query.answer(t("attachments_view_forbidden"), show_alert=True)
+            return
+
         # Get all attachments for the task
         attachments = TaskAttachmentService.get_attachments(db=db, task_id=task_id)
 
         if not attachments:
-            await callback_query.answer("⚠️ هیچ اتچمنتی برای این تسک وجود ندارد", show_alert=True)
+            await callback_query.answer(t("attachments_none"), show_alert=True)
             return
 
         # Send each attachment using the correct method
@@ -1381,12 +1556,12 @@ async def handle_get_attachments(callback_query: CallbackQuery):
                     document=file_id
                 )
 
-        await callback_query.answer("✅ همه اتچمنت‌ها ارسال شدند", show_alert=True)
+        await callback_query.answer(t("attachments_sent"), show_alert=True)
 
     except Exception:
         logger.exception("Unexpected error occurred")
         try:
-            await callback_query.answer("❌ خطا در ارسال اتچمنت‌ها", show_alert=True)
+            await callback_query.answer(t("generic_error"), show_alert=True)
         except Exception:
             logger.exception("Failed to send error message")
     
@@ -1496,12 +1671,12 @@ async def handle_short_edits(message: Message):
     db = None
     try:
         db = next(get_db())
-        if message.text != "/attach":
-            is_admin = UserService.is_admin(db=db, user_tID=message.from_user.id)
-            if not is_admin:
-                await message.delete()
-                em = await message.answer("شما دسترسی به اجرای این دستور را ندارید ❌")
-                await del_message(3, em)
+        current_user = UserService.get_user(db=db, user_tID=str(message.from_user.id))
+        is_admin = UserService.is_admin(db=db, user_tID=message.from_user.id)
+        if message.text != "/attach" and not is_admin:
+            await message.delete()
+            em = await message.answer(t("no_permission_cmd"))
+            await del_message(3, em)
 
         # Define command patterns with regex
         patterns = {
@@ -1542,18 +1717,16 @@ async def handle_short_edits(message: Message):
 
             if key == "time":
                 date_str = value
-                # Validate date format and parse it
-                try:
-                    parsed = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-                except ValueError:
-                    await message.answer("❌ فرمنت زمان معتبر نیست. فرمت درست : YYYY-MM-DD")
+                parsed = jalali_to_gregorian(date_str)
+                if not parsed:
+                    await message.answer(t("deadline_invalid_format"))
                     return
-                callback_text = f"short_edit|time|{parsed.isoformat()}"
+                callback_text = f"short_edit|time|{date_str}"
          
             if key == "attach":
                 # Ensure the command is a reply to a message containing media
-                if not message.reply_to_message or not message.reply_to_message.from_user.username:
-                    em = await message.answer("❌ لطفاً این دستور را ریپلای روی یک پیام حاوی فایل‌ها/مدیاها بفرستید")
+                if not message.reply_to_message:
+                    em = await message.answer("برای اضافه کردن فایل، ابتدا روی پیام حاوی فایل ریپلای کنید و سپس /attach را بفرستید.")
                     await del_message(3, em, message)
                     return
 
@@ -1581,7 +1754,7 @@ async def handle_short_edits(message: Message):
 
         # If no command pattern matched, notify the user
         if not callback_text:
-            em = await message.answer("❌ دستوری که فرستادید معتبر نیست")
+            em = await message.answer(t("invalid_command"))
             await del_message(3, em, message)
             return
 
@@ -1592,25 +1765,32 @@ async def handle_short_edits(message: Message):
             if message.is_topic_message:
                 topic = TaskService.get_topic(db=db, tID=str(message.message_thread_id))
                 if not topic:
-                    em = await message.answer("هیچ تسکی برای این تاپیک وجود ندارد")
+                    em = await message.answer(t("no_tasks_topic"))
                     await del_message(3, message, em)
                     return
                 tasks = TaskService.get_all_tasks(db=db, topic_id=topic.id)
             else:
                 group = TaskService.get_group(db=db, tID=str(message.chat.id))
                 if not group:
-                    em = await message.answer("هیچ تسکی برای این گروه وجود ندارد")
+                    em = await message.answer(t("no_tasks_group"))
                     await del_message(3, message, em)
                     return
                 tasks = TaskService.get_all_tasks(db=db, group_id=group.id)
         else:
-            em = await message.answer("❌ اجرای این دستور فقط در گروه ممکن است")
+            em = await message.answer(t("only_group_command"))
             await del_message(3, em)
             return
 
+        # Limit attachments for non-admins to tasks assigned to them
+        if not is_admin and callback_text and callback_text.startswith("short_edit|attach|"):
+            if current_user:
+                tasks = TaskService.get_tasks_for_user(db=db, user_id=current_user.id)
+            else:
+                tasks = None
+
         # If no tasks found, notify user
         if not tasks:
-            em = await message.answer("❌ هیچ تسکی پیدا نشد")
+            em = await message.answer(t("no_tasks_found"))
             await del_message(3, em, message)
             return
         
@@ -1622,7 +1802,7 @@ async def handle_short_edits(message: Message):
             ])
 
         await message.answer(
-            "تسک مورد نظر را برای اعمال این عملیات انتحاب کنید",
+            t("select_task_prompt"),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
         )
         await message.delete()
@@ -1630,7 +1810,7 @@ async def handle_short_edits(message: Message):
     except Exception:
         logger.exception("Unexpected error occurred")
         try:
-            await message.answer("❌ خطا در انجام عملیات")
+            await message.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")
     
@@ -1751,10 +1931,9 @@ async def short_edit_confirm(callback_query: CallbackQuery):
 
         # Handle changing the task's end date
         elif edit_type == "time":
-            try:
-                end_date = datetime.datetime.strptime(edit_value, "%Y-%m-%d")
-            except ValueError:
-                await callback_query.answer("❌ Invalid date format. Expected YYYY-MM-DD")
+            end_date = jalali_to_gregorian(edit_value)
+            if not end_date:
+                await callback_query.answer("❌ تاریخ نامعتبر است. فرمت درست: YYYY-MM-DD (شمسی)")
                 return
             result = TaskService.edit_task(db=db, task_id=task_id, end_date=end_date)
             success_message = f"✅ تاریخ تسک تغییر کرد به : {edit_value}"
@@ -1765,12 +1944,15 @@ async def short_edit_confirm(callback_query: CallbackQuery):
             media_key = edit_value
             file_ids = media_cache.get(media_key, [])
             added_count = 0
+            added_ids = []
 
             # Add each file ID to the task using TaskAttachmentService
             for file_id in file_ids:
                 try:
-                    TaskAttachmentService.add_attachment(db=db, task_id=task_id, attachment_id=file_id)
-                    added_count += 1
+                    added = TaskAttachmentService.add_attachment(db=db, task_id=task_id, attachment_id=file_id)
+                    if added:
+                        added_count += 1
+                        added_ids.append(file_id)
                 except Exception:
                     logger.exception(f"Failed to attach file {file_id} to task {task_id}")
 
@@ -1782,6 +1964,13 @@ async def short_edit_confirm(callback_query: CallbackQuery):
             # Inform user about successful attachments and remove cache
             success_message = f"✅ تعداد {added_count} فایل به تسک اضافه شد"
             file_ids = media_cache.__delitem__(media_key)
+
+            # Send notifications with only new files
+            task = TaskService.get_task_by_id(db=db, id=task_id)
+            adder_user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+            added_by_admin = bool(adder_user and adder_user.is_admin)
+            for fid in added_ids:
+                await _send_attachment_notification(callback_query, task, fid, added_by_admin)
 
             view_keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[

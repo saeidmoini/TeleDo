@@ -32,6 +32,11 @@ async def view_users(
         if db is None:
             db = next(get_db())
 
+        # Only admins may manage users
+        permission = await admin_require(db, message or callback_query)
+        if not permission:
+            return
+
         # Determine current user's Telegram ID
         user_tID = message.from_user.id if message else user_tID
 

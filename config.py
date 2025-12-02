@@ -14,5 +14,7 @@ class Config:
     PROXY_URL = os.getenv("PROXY_URL", None)
     MODE: Literal["DEV", "PROD"] = os.getenv("MODE", "PROD")
     BOT_USERNAME = os.getenv("BOT_USERNAME", "my_bot")
+    INITIAL_ADMIN_ID = os.getenv("INITIAL_ADMIN_ID")
+    INITIAL_ADMIN_USERNAME = os.getenv("INITIAL_ADMIN_USERNAME")
 
 config = Config()

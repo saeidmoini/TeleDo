@@ -8,8 +8,51 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.types import BotCommand
 from models import init_db
+from services.user_services import UserService
+from database import get_db
 
 init_db()
+
+
+def ensure_initial_admin():
+    """Create or promote the bootstrap admin configured in environment variables."""
+    admin_id = config.INITIAL_ADMIN_ID
+    admin_username = config.INITIAL_ADMIN_USERNAME
+    if not admin_id and not admin_username:
+        return
+
+    db = None
+    try:
+        db = next(get_db())
+        user = UserService.get_user(
+            db=db,
+            user_tID=str(admin_id) if admin_id else None,
+            username=admin_username,
+        )
+        if user:
+            changed = False
+            if admin_id and user.telegram_id != str(admin_id):
+                user.telegram_id = str(admin_id)
+                changed = True
+            if not user.is_admin:
+                user.is_admin = True
+                changed = True
+            if changed:
+                db.commit()
+                db.refresh(user)
+        else:
+            username = admin_username or f"admin_{admin_id}"
+            UserService.get_or_create_user(
+                db=db,
+                username=username,
+                telegram_id=str(admin_id) if admin_id else None,
+                is_admin=True,
+            )
+    except Exception:
+        logger.exception("Failed to bootstrap initial admin")
+    finally:
+        if db:
+            db.close()
 
 # Just when we need proxy
 if config.PROXY_URL:
@@ -59,6 +102,7 @@ async def on_shutdown(bot: Bot):
     logger.info("Bot stopped!")
 
 def main():
+    ensure_initial_admin()
     dp.startup.register(set_commands)
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)

@@ -5,8 +5,11 @@ from datetime import datetime
 from logger import logger
 from typing import List, Literal
 from handlers.funcs import exception_decorator
+from utils.date_utils import jalali_to_gregorian
 
 class TaskService:
+    VALID_STATUSES = {"pending", "in_progress", "done", "blocked"}
+
     @staticmethod
     @exception_decorator
     def get_or_create_group(db: Session, telegram_group_id: str, name: str = None) -> Group | None:
@@ -99,11 +102,11 @@ class TaskService:
         
         # Convert end_date string to datetime object if necessary
         end_date_obj = None
-        if end_date and isinstance(end_date, str):
-            try:
-                end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
-            except ValueError:
-                end_date_obj = None
+        if end_date:
+            if isinstance(end_date, str):
+                end_date_obj = jalali_to_gregorian(end_date)
+            elif isinstance(end_date, datetime):
+                end_date_obj = end_date
         
         # Create the task object
         task = Task(
@@ -183,9 +186,9 @@ class TaskService:
 
     @staticmethod
     @exception_decorator
-    def edit_task(db: Session, task_id: int, name: str = None, description: str = None, start_date: str = None, end_date: str = None) -> Literal[True, "NOT_EXIST"] | None:
+    def edit_task(db: Session, task_id: int, name: str = None, description: str = None, start_date: str = None, end_date: str = None, status: str = None) -> Literal[True, "NOT_EXIST"] | None:
         """
-        Edit task details such as name, description, start_date, and end_date.
+        Edit task details such as name, description, start_date, end_date, and status.
         Returns "NOT_EXIST" if the task does not exist.
         """
         task = db.query(Task).filter(
@@ -200,9 +203,17 @@ class TaskService:
         if description:
             task.description = description
         if start_date:
-            task.start_date = start_date
+            if isinstance(start_date, str):
+                task.start_date = jalali_to_gregorian(start_date)
+            else:
+                task.start_date = start_date
         if end_date:
-            task.end_date = end_date
+            if isinstance(end_date, str):
+                task.end_date = jalali_to_gregorian(end_date)
+            else:
+                task.end_date = end_date
+        if status and status in TaskService.VALID_STATUSES:
+            task.status = status
 
         db.commit()
         db.refresh(task)
@@ -263,14 +274,21 @@ class TaskService:
     
     @staticmethod
     @exception_decorator
-    def get_task_by_id(db: Session, id: int) -> Task:
-        """
-        Retrieve all tasks assigned to a specific user.
-        """
-        tasks = db.query(Task).filter(
-            Task.id == id
+    def is_user_assigned(db: Session, task_id: int, user_id: int) -> bool:
+        """Check if a user is assigned to a given task."""
+        exists = db.query(UserTask).filter(
+            UserTask.task_id == task_id,
+            UserTask.user_id == user_id
         ).first()
-        return tasks
+        return bool(exists)
+
+    @staticmethod
+    @exception_decorator
+    def update_status(db: Session, task_id: int, status: str) -> Literal[True, "NOT_EXIST"] | None:
+        """Update task status if valid."""
+        if status not in TaskService.VALID_STATUSES:
+            return None
+        return TaskService.edit_task(db=db, task_id=task_id, status=status)
 
 class TaskAttachmentService:
     
@@ -285,17 +303,20 @@ class TaskAttachmentService:
 
     @staticmethod
     @exception_decorator
-    def add_attachment(db: Session, task_id: int, attachment_id: str) -> None:
-        """Add a new attachment ID to a task"""
+    def add_attachment(db: Session, task_id: int, attachment_id: str) -> bool:
+        """Add a new attachment ID to a task. Returns True if added, False if duplicate."""
         record = db.query(TaskAttachment).filter(TaskAttachment.task_id == task_id).first()
         if record:
             # Append if not exists
             if attachment_id not in record.attachment_ids:
                 record.attachment_ids.append(attachment_id)
+            else:
+                return False
         else:
             record = TaskAttachment(task_id=task_id, attachment_ids=[attachment_id])
             db.add(record)
         db.commit()
+        return True
 
 
 
