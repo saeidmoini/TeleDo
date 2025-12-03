@@ -6,10 +6,11 @@ from config import config
 from handlers import main_router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
-from aiogram.types import BotCommand
-from models import init_db
+from aiogram.types import BotCommand, BotCommandScopeChat, BotCommandScopeDefault
+from models import User, init_db
 from services.user_services import UserService
 from database import get_db
+from utils.texts import t
 
 init_db()
 
@@ -73,20 +74,61 @@ else:
 
 # Set commands
 async def set_commands(bot: Bot):
-    try:
-        commands = [
-            BotCommand(command="/tasks", description="نمایش و مدیریت تمام تسک‌ها"),
-            BotCommand(command="/add", description='افزودن تسک جدید. مثال: "نام_تسک add/"'),
-            BotCommand(command="/user", description='افزودن یا اختصاص کاربر به تسک. مثال: " نام_کاربری user/ "'),
-            BotCommand(command="/name", description='تغییر نام تسک. مثال: " نام_جدید name/ "'),
-            BotCommand(command="/des", description='ویرایش توضیحات تسک. مثال: " توضیحات_جدید des/ "'),
-            BotCommand(command="/attach", description='افزودن فایل یا تصویر به تسک. کافی است روی فایل یا تصویر ریپلای کرده و بنویسید "attach/"'),
-            BotCommand(command="/time", description='تعیین یا تغییر زمان تسک. مثال: " 2025-10-08 time/ "')
-        ]
+    """
+    Register command menus for users and admins.
+    - Default scope: regular users only see /tasks for their own items.
+    - Admin scope (per admin chat): /tasks for full task control and /users for user management.
+    """
+    user_commands = [
+        BotCommand(
+            command="/tasks",
+            description=t("cmd_user_tasks_desc"),
+        ),
+    ]
 
-        await bot.set_my_commands(commands)
+    admin_commands = [
+        BotCommand(
+            command="/tasks",
+            description=t("cmd_admin_tasks_desc"),
+        ),
+        BotCommand(
+            command="/users",
+            description=t("cmd_admin_users_desc"),
+        ),
+    ]
+
+    try:
+        await bot.set_my_commands(user_commands, scope=BotCommandScopeDefault())
     except Exception:
-        logger.exception("Faild to add commands to bot")
+        logger.exception("Failed to set default (user) commands")
+
+    admin_chat_ids = set()
+    db = None
+    try:
+        db = next(get_db())
+        admins = (
+            db.query(User)
+            .filter(User.is_admin.is_(True), User.telegram_id.isnot(None))
+            .all()
+        )
+        for admin in admins:
+            try:
+                admin_chat_ids.add(int(admin.telegram_id))
+            except (TypeError, ValueError):
+                logger.warning("Skipping admin with invalid telegram_id: %s", admin.telegram_id)
+    except Exception:
+        logger.exception("Failed to load admin list for command setup")
+    finally:
+        if db:
+            db.close()
+
+    for admin_chat_id in admin_chat_ids:
+        try:
+            await bot.set_my_commands(
+                admin_commands, scope=BotCommandScopeChat(chat_id=admin_chat_id)
+            )
+        except Exception:
+            logger.exception("Failed to set admin commands for chat %s", admin_chat_id)
 
 dp = Dispatcher()
 
