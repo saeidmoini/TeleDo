@@ -1,3 +1,4 @@
+import asyncio
 from logger import logger
 from aiogram import Bot, Dispatcher
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
@@ -136,11 +137,19 @@ dp = Dispatcher()
 dp.include_router(main_router)
 
 async def on_startup(bot: Bot):
-    #await bot.set_webhook(config.WEBHOOK_URL)
+    if config.MODE.upper() == "PROD" and config.WEBHOOK_URL:
+        try:
+            await bot.set_webhook(config.WEBHOOK_URL)
+        except Exception:
+            logger.exception("Failed to set webhook on startup")
     logger.info("Bot started!")
 
 async def on_shutdown(bot: Bot):
-    #await bot.delete_webhook()
+    if config.MODE.upper() == "PROD" and config.WEBHOOK_URL:
+        try:
+            await bot.delete_webhook()
+        except Exception:
+            logger.exception("Failed to delete webhook on shutdown")
     logger.info("Bot stopped!")
 
 def main():
@@ -149,16 +158,25 @@ def main():
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
     
-    app = web.Application()
-    webhook_requests_handler = SimpleRequestHandler(
-        dispatcher=dp,
-        bot=bot,
-    )
-    
-    webhook_requests_handler.register(app, path="/webhook")
-    setup_application(app, dp, bot=bot)
-    
-    web.run_app(app, host=config.WEBAPP_HOST, port=config.WEBAPP_PORT)
+    if config.MODE.upper() == "DEV":
+        asyncio.run(dp.start_polling(bot))
+    else:
+        app = web.Application()
+        webhook_requests_handler = SimpleRequestHandler(
+            dispatcher=dp,
+            bot=bot,
+        )
+        
+        webhook_requests_handler.register(app, path="/webhook")
+        setup_application(app, dp, bot=bot)
+
+        async def healthcheck(request: web.Request):
+            # Simple endpoint so opening the host in a browser does not return 404
+            return web.Response(text="Telegram bot webhook is running")
+        app.router.add_get("/", healthcheck)
+        app.router.add_get("/health", healthcheck)
+        
+        web.run_app(app, host=config.WEBAPP_HOST, port=config.WEBAPP_PORT)
 
 if __name__ == "__main__":
     main()
