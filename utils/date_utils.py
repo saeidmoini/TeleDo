@@ -23,3 +23,10 @@ def jalali_to_gregorian(date_str: str) -> datetime | None:
         return jd.togregorian()
     except Exception:
         return None
+
+
+def is_future_date(dt: datetime | None) -> bool:
+    """Return True if the given datetime is strictly in the future (by date)."""
+    if not dt:
+        return False
+    return dt.date() > datetime.now().date()

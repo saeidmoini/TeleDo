@@ -1,6 +1,6 @@
 from .. import main_router as router
 from .. import chat_type_filter, get_main_menu_keyboard, del_message
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.filters import Command
 from aiogram.enums import ChatType
 from aiogram import F
@@ -12,6 +12,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from config import config
+from utils.texts import t
 
 # ===== Handler for create new task in group/supergroup chats =====
 @router.message(Command("add"), chat_type_filter(ChatType.GROUP))
@@ -114,6 +115,7 @@ async def add_task(message: Message):
 # ===== Handler for create new task in private chats =====
 class AddTaskStates(StatesGroup):
     waiting_for_title = State()
+    confirming_task = State()
 
 @router.message(Command("add"), chat_type_filter(ChatType.PRIVATE))
 async def add_task_in_private(message: Message, state: FSMContext):
@@ -268,79 +270,176 @@ async def cancel_add_task(message: Message, state: FSMContext):
 
 @router.message(AddTaskStates.waiting_for_title)
 async def process_task_and_create(message: Message, state: FSMContext):
-    """Process task title and create the task immediately"""
+    """Ask whether user wants to add more details before creating the task."""
     try:
         data = await state.get_data()
 
         if not message.text:
-            error = await message.answer("❌ لطفاً یک عنوان معتبر وارد کنید:")
-            message_ids = data.get('message_ids', [])
-            message_ids.append(error.message_id)
-            await state.update_data(message_ids=message_ids)
-            return
-        
-        # Store current message_id
-        message_ids = data.get('message_ids', [])
-        message_ids.append(message.message_id)
-        
-        db = next(get_db())
-        
-        # Create task with only title and admin ID (other fields will be None)
-        task = TaskService.create_task(
-            db=db,
-            admin_id=data['user_id'],
-            title=message.text,
-        )
-        if not task:
-            error = await message.answer("❌ خطایی در ساخت تسک پیش آمد. لطفاً دوباره تلاش کنید")
+            error = await message.answer(t("task_missing_title"))
             message_ids = data.get('message_ids', [])
             message_ids.append(error.message_id)
             await state.update_data(message_ids=message_ids)
             return
 
-        # Prepare appropriate keyboard
-        keyboard = get_main_menu_keyboard(chat_type=data['chat_type'], is_admin=data.get('user_admin', False))
-        
-        # Send final confirmation message
-        final_response = await message.answer(
-            f"✅ تسک با موفقیت ایجاد شد!\n\n"
-            f"📋 عنوان: {message.text}\n"
-            f"📝 توضیحات: بدون توضیح\n"
-            f"⏰ شروع: تعیین نشده\n"
-            f"⏰ پایان: تعیین نشده",
-            reply_markup=keyboard
+        # Store current message_id
+        message_ids = data.get('message_ids', [])
+        message_ids.append(message.message_id)
+
+        # Keep the title in state until the user confirms
+        await state.update_data(title=message.text, message_ids=message_ids)
+
+        # Ask whether to add more details or submit
+        prompt = await message.answer(
+            t("task_add_more_prompt"),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[
+                    InlineKeyboardButton(text=t("btn_add_more_details"), callback_data="task_confirm_add_more"),
+                    InlineKeyboardButton(text=t("btn_submit_task"), callback_data="task_confirm_submit"),
+                ]]
+            ),
         )
-        
-        try:
-            # Delete all messages related to the add task operation
-            for msg_id in message_ids:
-                try:
-                    await message.bot.delete_message(
-                        chat_id=message.chat.id,
-                        message_id=msg_id
-                    )
-                except Exception:
-                    logger.exception(f"Failed to delete message")
-                    continue
-            
-        except Exception:
-            logger.exception(f"Failed to clean up messages")
-        
-        # Clear state
-        await state.clear()
-        
+
+        message_ids.append(prompt.message_id)
+        await state.update_data(message_ids=message_ids)
+        await state.set_state(AddTaskStates.confirming_task)
+
     except Exception:
         # Log unexpected error and try to notify user
         logger.exception("Unexpected error occurred")
         try:
-            await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await message.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")
-    
+
+
+@router.callback_query(AddTaskStates.confirming_task, F.data == "task_confirm_submit")
+async def handle_confirm_submit(callback_query: CallbackQuery, state: FSMContext):
+    """Finalize creation without adding extra details."""
+    db = None
+    try:
+        data = await state.get_data()
+        title = data.get("title")
+        if not title:
+            await callback_query.answer(t("task_missing_title"), show_alert=True)
+            await state.clear()
+            return
+
+        group_id = data.get("group_id")
+        topic_id = data.get("topic_id")
+        group_id = int(group_id) if group_id else None
+        topic_id = int(topic_id) if topic_id else None
+
+        db = next(get_db())
+        task = TaskService.create_task(
+            db=db,
+            admin_id=data["user_id"],
+            group_id=group_id,
+            topic_id=topic_id,
+            title=title,
+        )
+        if not task:
+            await callback_query.answer(t("task_create_failed"), show_alert=True)
+            return
+
+        keyboard = get_main_menu_keyboard(
+            chat_type=data["chat_type"],
+            is_admin=data.get("user_admin", False)
+        )
+        await callback_query.message.answer(
+            t("task_create_submit_success", title=title),
+            reply_markup=keyboard
+        )
+
+        for msg_id in data.get("message_ids", []):
+            try:
+                await callback_query.bot.delete_message(
+                    chat_id=callback_query.message.chat.id,
+                    message_id=msg_id
+                )
+            except Exception:
+                logger.exception("Failed to clean up message during submit flow")
+                continue
+
+        await state.clear()
+        await callback_query.answer()
+
+    except Exception:
+        logger.exception("Unexpected error during submit confirmation")
+        try:
+            await callback_query.answer(t("generic_error"), show_alert=True)
+        except Exception:
+            logger.exception("Failed to send error toast in submit confirmation")
     finally:
-        # Always close database connection
         if db is not None:
             try:
                 db.close()
             except Exception:
-                logger.exception("Failed to close db")
+                logger.exception("Failed to close db in submit confirmation")
+
+
+@router.callback_query(AddTaskStates.confirming_task, F.data == "task_confirm_add_more")
+async def handle_confirm_add_more(callback_query: CallbackQuery, state: FSMContext):
+    """Create task then direct user to edit template for extra details."""
+    db = None
+    try:
+        data = await state.get_data()
+        title = data.get("title")
+        if not title:
+            await callback_query.answer(t("task_missing_title"), show_alert=True)
+            await state.clear()
+            return
+
+        group_id = data.get("group_id")
+        topic_id = data.get("topic_id")
+        group_id = int(group_id) if group_id else None
+        topic_id = int(topic_id) if topic_id else None
+
+        db = next(get_db())
+        task = TaskService.create_task(
+            db=db,
+            admin_id=data["user_id"],
+            group_id=group_id,
+            topic_id=topic_id,
+            title=title,
+        )
+        if not task:
+            await callback_query.answer(t("task_create_failed"), show_alert=True)
+            return
+
+        for msg_id in data.get("message_ids", []):
+            if msg_id == callback_query.message.message_id:
+                continue
+            try:
+                await callback_query.bot.delete_message(
+                    chat_id=callback_query.message.chat.id,
+                    message_id=msg_id
+                )
+            except Exception:
+                logger.exception("Failed to delete message in add-more flow")
+                continue
+
+        await callback_query.message.edit_text(
+            t("task_create_more_success", title=title),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=t("btn_open_task_template"), callback_data=f"view_task|{task.id}")],
+                    [InlineKeyboardButton(text=t("btn_finish_creation"), callback_data="back_to_main_menu")],
+                ]
+            )
+        )
+
+        await state.clear()
+        await callback_query.answer()
+
+    except Exception:
+        logger.exception("Unexpected error during add-more confirmation")
+        try:
+            await callback_query.answer(t("generic_error"), show_alert=True)
+        except Exception:
+            logger.exception("Failed to send error toast in add-more confirmation")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db in add-more confirmation")

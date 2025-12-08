@@ -6,6 +6,7 @@ from logger import logger
 from typing import List, Literal
 from handlers.funcs import exception_decorator
 from utils.date_utils import jalali_to_gregorian
+import uuid
 
 class TaskService:
     VALID_STATUSES = {"pending", "in_progress", "done", "blocked"}
@@ -30,6 +31,37 @@ class TaskService:
             db.commit()
             db.refresh(group)
         return group
+
+    @staticmethod
+    @exception_decorator
+    def create_group(db: Session, name: str) -> Group | None:
+        """
+        Create a new group with the given name.
+        """
+        if not name:
+            return None
+        # Generate a unique placeholder telegram_id for manual groups
+        telegram_id = f"manual-{uuid.uuid4()}"
+        group = Group(name=name, telegram_id=telegram_id)
+        db.add(group)
+        db.commit()
+        db.refresh(group)
+        return group
+
+    @staticmethod
+    @exception_decorator
+    def create_topic(db: Session, group_id: int, name: str) -> Topic | None:
+        """
+        Create a new topic inside a group with a generated telegram_id placeholder.
+        """
+        if not name or not group_id:
+            return None
+        telegram_id = f"manual-topic-{uuid.uuid4()}"
+        topic = Topic(group_id=group_id, name=name, telegram_id=telegram_id)
+        db.add(topic)
+        db.commit()
+        db.refresh(topic)
+        return topic
     
     @staticmethod
     @exception_decorator
@@ -186,7 +218,7 @@ class TaskService:
 
     @staticmethod
     @exception_decorator
-    def edit_task(db: Session, task_id: int, name: str = None, description: str = None, start_date: str = None, end_date: str = None, status: str = None) -> Literal[True, "NOT_EXIST"] | None:
+    def edit_task(db: Session, task_id: int, name: str = None, description: str = None, start_date: str = None, end_date: str = None, status: str = None, group_id: int = None, topic_id: int = None) -> Literal[True, "NOT_EXIST"] | None:
         """
         Edit task details such as name, description, start_date, end_date, and status.
         Returns "NOT_EXIST" if the task does not exist.
@@ -214,6 +246,10 @@ class TaskService:
                 task.end_date = end_date
         if status and status in TaskService.VALID_STATUSES:
             task.status = status
+        if group_id is not None:
+            task.group_id = group_id
+        if topic_id is not None:
+            task.topic_id = topic_id
 
         db.commit()
         db.refresh(task)

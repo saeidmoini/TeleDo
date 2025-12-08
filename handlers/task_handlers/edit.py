@@ -18,7 +18,7 @@ from aiogram.exceptions import TelegramBadRequest
 import re
 import uuid
 from config import config
-from utils.date_utils import gregorian_to_jalali, jalali_to_gregorian
+from utils.date_utils import gregorian_to_jalali, jalali_to_gregorian, is_future_date
 from utils.texts import t
 
 media_cache = {}
@@ -59,6 +59,63 @@ async def _send_attachment_notification(callback_obj, task, attachment_id, added
             logger.exception("Failed to close db in notification helper")
 
 
+async def _notify_assigned_users(task, bot, text_key: str):
+    """Notify all assigned users about a task update."""
+    db = next(get_db())
+    try:
+        users = TaskService.get_task_users(db=db, task_id=task.id) or []
+        for u in users:
+            if not u.telegram_id:
+                continue
+            try:
+                await bot.send_message(
+                    chat_id=u.telegram_id,
+                    text=t(text_key, title=task.title),
+                    reply_markup=InlineKeyboardMarkup(
+                        inline_keyboard=[[InlineKeyboardButton(text=t("notify_task_assigned_btn"), callback_data=f"show_task|{task.id}")]]
+                    )
+                )
+            except Exception:
+                logger.exception("Failed to notify assigned user")
+                continue
+    finally:
+        try:
+            db.close()
+        except Exception:
+            logger.exception("Failed to close db in notify helper")
+
+
+async def _notify_status_change(task, bot, actor_is_admin: bool, actor_username: str, new_status: str):
+    """Notify admin or users about status change."""
+    db = next(get_db())
+    try:
+        if actor_is_admin:
+            recipients = TaskService.get_task_users(db=db, task_id=task.id) or []
+            text_key = "notify_status_changed_users"
+        else:
+            admin = UserService.get_user(db=db, user_ID=task.admin_id)
+            recipients = [admin] if admin else []
+            text_key = "notify_status_changed_admin"
+
+        for u in recipients:
+            if not u or not u.telegram_id:
+                continue
+            try:
+                await bot.send_message(
+                    chat_id=u.telegram_id,
+                    text=t(text_key, title=task.title, username=actor_username, status=new_status),
+                    reply_markup=InlineKeyboardMarkup(
+                        inline_keyboard=[[InlineKeyboardButton(text=t("notify_task_assigned_btn"), callback_data=f"show_task|{task.id}")]]
+                    )
+                )
+            except Exception:
+                logger.exception("Failed to notify status change")
+                continue
+    finally:
+        try:
+            db.close()
+        except Exception:
+            logger.exception("Failed to close db in status notify helper")
 @exception_decorator
 def chunk_list(lst:list, chunk_size: int) -> List[List] | None:
     return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
@@ -339,6 +396,7 @@ async def handle_view_task(callback_query: CallbackQuery, state: FSMContext = No
                 [InlineKeyboardButton(text=t("btn_back"), callback_data="back"), InlineKeyboardButton(text=t("btn_delete_task"), callback_data=f"delete_task|{task.id}")],
                 [InlineKeyboardButton(text=t("btn_add_user"), callback_data=f"add_user|{task.id}"), InlineKeyboardButton(text=t("btn_remove_users"), callback_data=f"del_users|{task.id}")],
                 [InlineKeyboardButton(text=t("btn_view_assigned"), callback_data=f"view_task_users|{task.id}"), InlineKeyboardButton(text=t("btn_set_deadline"), callback_data=f"edit_end|{task.id}")],
+                [InlineKeyboardButton(text=t("btn_set_group"), callback_data=f"edit_group|{task.id}"), InlineKeyboardButton(text=t("btn_set_topic"), callback_data=f"edit_topic|{task.id}")],
                 [InlineKeyboardButton(text=t("btn_edit_desc"), callback_data=f"edit_desc|{task.id}"), InlineKeyboardButton(text=t("btn_edit_name"), callback_data=f"edit_name|{task.id}")],
                 [InlineKeyboardButton(text=t("btn_add_attachment"), callback_data=f"add_attachment|{task.id}"), InlineKeyboardButton(text=t("btn_get_attachments"), callback_data=f"get_attachments|{task.id}")],
                 [InlineKeyboardButton(text=t("btn_update_status"), callback_data=f"choose_status|{task.id}|{show_type}")],
@@ -362,8 +420,8 @@ async def handle_view_task(callback_query: CallbackQuery, state: FSMContext = No
         start_jalali = gregorian_to_jalali(task.start_date)
         end_jalali = gregorian_to_jalali(task.end_date)
 
-        group_line = f"Group: {group.name}\n" if group else ""
-        topic_line = f"Topic: {topic.name} - {topic.link}\n" if topic else ""
+        group_line = f"گروه: {group.name}\n" if group else ""
+        topic_line = f"تاپیک: {topic.name}\n" if topic else ""
         desc = task.description or t("not_set")
         body = t(
             "task_view_template",
@@ -493,6 +551,16 @@ async def handle_change_status(callback_query: CallbackQuery):
 
         await callback_query.answer(t("status_updated"))
         try:
+            await _notify_status_change(
+                task,
+                callback_query.bot,
+                actor_is_admin=is_admin,
+                actor_username=callback_query.from_user.username or callback_query.from_user.full_name,
+                new_status=new_status,
+            )
+        except Exception:
+            logger.exception("Failed to send status change notifications")
+        try:
             await callback_query.message.delete()
         except Exception:
             logger.exception("Failed to delete status selection message")
@@ -565,6 +633,408 @@ class EditTaskStates(StatesGroup):
     waiting_for_name = State()
     waiting_for_desc = State()
     waiting_for_end = State()
+    waiting_for_group_name = State()
+    waiting_for_topic_name = State()
+
+
+# ====== Edit Task Group ======
+@router.callback_query(F.data.startswith("edit_group|"))
+async def handle_edit_group(callback_query: CallbackQuery, state: FSMContext):
+    """Show group selection for a task (existing groups or create new)."""
+    db = None
+    try:
+        task_id = int(callback_query.data.split("|")[1])
+        db = next(get_db())
+        groups = TaskService.get_all_groups(db=db) or []
+
+        keyboard_buttons = [
+            [
+                InlineKeyboardButton(
+                    text=grp.name,
+                    callback_data=f"select_group|{grp.id}|{task_id}"
+                ) for grp in chunk
+            ]
+            for chunk in (chunk_list(groups, 2) or [])
+        ]
+
+        keyboard_buttons.append([
+            InlineKeyboardButton(text=t("btn_group_other"), callback_data=f"select_group|NONE|{task_id}")
+        ])
+        keyboard_buttons.append([
+            InlineKeyboardButton(text=t("btn_create_group"), callback_data=f"create_group|{task_id}")
+        ])
+        keyboard_buttons.append([
+            InlineKeyboardButton(text=t("btn_back"), callback_data=f"view_task|{task_id}")
+        ])
+
+        await callback_query.message.edit_text(
+            t("task_group_select_prompt"),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        )
+        await callback_query.answer()
+    except Exception:
+        logger.exception("Failed to show group selection")
+        try:
+            await callback_query.answer(t("generic_error"), show_alert=True)
+        except Exception:
+            logger.exception("Failed to send error toast for group selection")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db in handle_edit_group")
+
+
+@router.callback_query(F.data.startswith("select_group|"))
+async def handle_select_group(callback_query: CallbackQuery):
+    """Assign selected group (or سایر) to the task."""
+    db = None
+    try:
+        _, group_id_raw, task_id_raw = callback_query.data.split("|")
+        task_id = int(task_id_raw)
+        group_id_val = None if group_id_raw == "NONE" else int(group_id_raw)
+
+        db = next(get_db())
+        task = TaskService.get_task_by_id(db=db, id=task_id)
+        group = TaskService.get_group(db=db, id=group_id_val) if group_id_val else None
+        res = TaskService.edit_task(db=db, task_id=task_id, group_id=group_id_val)
+        if res == "NOT_EXIST":
+            await callback_query.answer(t("task_not_found"), show_alert=True)
+            return
+        group_name = group.name if group else t("group_other_label")
+
+        await callback_query.message.edit_text(
+            t("task_group_set_success", group=group_name),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[
+                    InlineKeyboardButton(text=t("btn_back"), callback_data=f"view_task|{task_id}")
+                ]]
+            )
+        )
+        try:
+            await _notify_assigned_users(task, callback_query.bot, "notify_task_updated_by_admin")
+        except Exception:
+            logger.exception("Failed to notify users about group change")
+        await callback_query.answer()
+    except Exception:
+        logger.exception("Failed to set group for task")
+        try:
+            await callback_query.answer(t("generic_error"), show_alert=True)
+        except Exception:
+            logger.exception("Failed to send error toast in set group")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db in handle_select_group")
+
+
+@router.callback_query(F.data.startswith("create_group|"))
+async def handle_create_group_prompt(callback_query: CallbackQuery, state: FSMContext):
+    """Prompt for a new group name then create and assign it."""
+    try:
+        task_id = int(callback_query.data.split("|")[1])
+        await state.update_data(task_id=task_id, prompt_msg_id=callback_query.message.message_id)
+        await state.set_state(EditTaskStates.waiting_for_group_name)
+
+        await callback_query.message.edit_text(
+            t("task_group_enter_name"),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[
+                    InlineKeyboardButton(text=t("btn_back"), callback_data=f"edit_group|{task_id}")
+                ]]
+            )
+        )
+        await callback_query.answer()
+    except Exception:
+        logger.exception("Failed to prompt for new group name")
+        try:
+            await callback_query.answer(t("generic_error"), show_alert=True)
+        except Exception:
+            logger.exception("Failed to send error toast in create_group prompt")
+
+
+@router.message(EditTaskStates.waiting_for_group_name)
+async def process_new_group_name(message: Message, state: FSMContext):
+    """Create a new group and assign it to the task."""
+    db = None
+    try:
+        name = message.text.strip()
+        data = await state.get_data()
+        task_id = int(data.get("task_id"))
+        prompt_msg_id = data.get("prompt_msg_id")
+
+        if not name:
+            await message.answer(t("task_group_invalid_name"))
+            return
+
+        db = next(get_db())
+        group = TaskService.create_group(db=db, name=name)
+        if not group:
+            await message.answer(t("task_create_group_failed"))
+            return
+
+        TaskService.edit_task(db=db, task_id=task_id, group_id=group.id)
+        try:
+            task = TaskService.get_task_by_id(db=db, id=task_id)
+            await _notify_assigned_users(task, message.bot, "notify_task_updated_by_admin")
+        except Exception:
+            logger.exception("Failed to notify users about new group")
+
+        try:
+            await message.delete()
+        except Exception:
+            logger.exception("Could not delete group name message")
+
+        try:
+            await message.bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=prompt_msg_id,
+                text=t("task_group_create_success", group=name),
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[
+                        InlineKeyboardButton(text=t("btn_back"), callback_data=f"view_task|{task_id}")
+                    ]]
+                )
+            )
+        except Exception:
+            logger.exception("Failed to edit prompt message after group creation")
+            await message.answer(
+                t("task_group_create_success", group=name),
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[
+                        InlineKeyboardButton(text=t("btn_back"), callback_data=f"view_task|{task_id}")
+                    ]]
+                )
+            )
+
+        await state.clear()
+    except Exception:
+        logger.exception("Unexpected error while creating new group")
+        try:
+            await message.answer(t("generic_error"))
+        except Exception:
+            logger.exception("Failed to send error message for group creation")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db in process_new_group_name")
+
+
+# ====== Edit Task Topic ======
+@router.callback_query(F.data.startswith("edit_topic|"))
+async def handle_edit_topic(callback_query: CallbackQuery, state: FSMContext):
+    """Show topic selection within the task's group (or سایر)."""
+    db = None
+    try:
+        task_id = int(callback_query.data.split("|")[1])
+        db = next(get_db())
+        task = TaskService.get_task_by_id(db=db, id=task_id)
+        if not task:
+            await callback_query.answer(t("task_not_found"), show_alert=True)
+            return
+        if not task.group_id:
+            await callback_query.answer(t("task_topic_requires_group"), show_alert=True)
+            return
+
+        topics = TaskService.get_all_topics(db=db, group_id=task.group_id) or []
+        keyboard_buttons = [
+            [
+                InlineKeyboardButton(
+                    text=tp.name,
+                    callback_data=f"select_topic|{tp.id}|{task_id}"
+                ) for tp in chunk
+            ]
+            for chunk in (chunk_list(topics, 2) or [])
+        ]
+        keyboard_buttons.append([
+            InlineKeyboardButton(text=t("btn_topic_other"), callback_data=f"select_topic|NONE|{task_id}")
+        ])
+        keyboard_buttons.append([
+            InlineKeyboardButton(text=t("btn_create_topic"), callback_data=f"create_topic|{task_id}")
+        ])
+        keyboard_buttons.append([
+            InlineKeyboardButton(text=t("btn_back"), callback_data=f"view_task|{task_id}")
+        ])
+
+        await callback_query.message.edit_text(
+            t("task_topic_select_prompt"),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        )
+        await callback_query.answer()
+    except Exception:
+        logger.exception("Failed to show topic selection")
+        try:
+            await callback_query.answer(t("generic_error"), show_alert=True)
+        except Exception:
+            logger.exception("Failed to send error toast for topic selection")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db in handle_edit_topic")
+
+
+@router.callback_query(F.data.startswith("select_topic|"))
+async def handle_select_topic(callback_query: CallbackQuery):
+    """Assign selected topic (or سایر) to the task."""
+    db = None
+    try:
+        _, topic_id_raw, task_id_raw = callback_query.data.split("|")
+        task_id = int(task_id_raw)
+        topic_id_val = None if topic_id_raw == "NONE" else int(topic_id_raw)
+
+        db = next(get_db())
+        task = TaskService.get_task_by_id(db=db, id=task_id)
+        topic = TaskService.get_topic(db=db, id=topic_id_val) if topic_id_val else None
+        res = TaskService.edit_task(db=db, task_id=task_id, topic_id=topic_id_val)
+        if res == "NOT_EXIST":
+            await callback_query.answer(t("task_not_found"), show_alert=True)
+            return
+        topic_name = topic.name if topic else t("topic_other_label")
+
+        await callback_query.message.edit_text(
+            t("task_topic_set_success", topic=topic_name),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[
+                    InlineKeyboardButton(text=t("btn_back"), callback_data=f"view_task|{task_id}")
+                ]]
+            )
+        )
+        try:
+            await _notify_assigned_users(task, callback_query.bot, "notify_task_updated_by_admin")
+        except Exception:
+            logger.exception("Failed to notify users about topic change")
+        await callback_query.answer()
+    except Exception:
+        logger.exception("Failed to set topic for task")
+        try:
+            await callback_query.answer(t("generic_error"), show_alert=True)
+        except Exception:
+            logger.exception("Failed to send error toast in set topic")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db in handle_select_topic")
+
+
+@router.callback_query(F.data.startswith("create_topic|"))
+async def handle_create_topic_prompt(callback_query: CallbackQuery, state: FSMContext):
+    """Prompt for a new topic name then create and assign it to the task's group."""
+    db = None
+    try:
+        task_id = int(callback_query.data.split("|")[1])
+        db = next(get_db())
+        task = TaskService.get_task_by_id(db=db, id=task_id)
+        if not task or not task.group_id:
+            await callback_query.answer(t("task_topic_requires_group"), show_alert=True)
+            return
+
+        await state.update_data(task_id=task_id, prompt_msg_id=callback_query.message.message_id)
+        await state.set_state(EditTaskStates.waiting_for_topic_name)
+
+        await callback_query.message.edit_text(
+            t("task_topic_enter_name"),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[
+                    InlineKeyboardButton(text=t("btn_back"), callback_data=f"edit_topic|{task_id}")
+                ]]
+            )
+        )
+        await callback_query.answer()
+    except Exception:
+        logger.exception("Failed to prompt for new topic name")
+        try:
+            await callback_query.answer(t("generic_error"), show_alert=True)
+        except Exception:
+            logger.exception("Failed to send error toast in create_topic prompt")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db in handle_create_topic_prompt")
+
+
+@router.message(EditTaskStates.waiting_for_topic_name)
+async def process_new_topic_name(message: Message, state: FSMContext):
+    """Create a new topic in the task's group and assign it."""
+    db = None
+    try:
+        name = message.text.strip()
+        data = await state.get_data()
+        task_id = int(data.get("task_id"))
+        prompt_msg_id = data.get("prompt_msg_id")
+
+        if not name:
+            await message.answer(t("task_topic_invalid_name"))
+            return
+
+        db = next(get_db())
+        task = TaskService.get_task_by_id(db=db, id=task_id)
+        if not task or not task.group_id:
+            await message.answer(t("task_topic_requires_group"))
+            await state.clear()
+            return
+
+        topic = TaskService.create_topic(db=db, group_id=task.group_id, name=name)
+        if not topic:
+            await message.answer(t("task_create_topic_failed"))
+            return
+
+        TaskService.edit_task(db=db, task_id=task_id, topic_id=topic.id)
+        try:
+            await _notify_assigned_users(task, message.bot, "notify_task_updated_by_admin")
+        except Exception:
+            logger.exception("Failed to notify users about new topic")
+
+        try:
+            await message.delete()
+        except Exception:
+            logger.exception("Could not delete topic name message")
+
+        try:
+            await message.bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=prompt_msg_id,
+                text=t("task_topic_create_success", topic=name),
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[
+                        InlineKeyboardButton(text=t("btn_back"), callback_data=f"view_task|{task_id}")
+                    ]]
+                )
+            )
+        except Exception:
+            logger.exception("Failed to edit prompt message after topic creation")
+            await message.answer(
+                t("task_topic_create_success", topic=name),
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[
+                        InlineKeyboardButton(text=t("btn_back"), callback_data=f"view_task|{task_id}")
+                    ]]
+                )
+            )
+
+        await state.clear()
+    except Exception:
+        logger.exception("Unexpected error while creating new topic")
+        try:
+            await message.answer(t("generic_error"))
+        except Exception:
+            logger.exception("Failed to send error message for topic creation")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db in process_new_topic_name")
 
 
 # ====== Edit Task Name ======
@@ -635,6 +1105,13 @@ async def process_edit_name(message: Message, state: FSMContext):
             text = "❌ این تسک وجود ندارد"
         else:
             text = "❌ مشکلی در تغییر تسک به وجود آمد"
+
+        if res:
+            try:
+                task = TaskService.get_task_by_id(db=db, id=task_id)
+                await _notify_assigned_users(task, message.bot, "notify_task_updated_by_admin")
+            except Exception:
+                logger.exception("Failed to notify users about name change")
 
         # پیام اصلی که قبلاً ذخیره کردیم تغییر کنه
         await message.bot.edit_message_text(
@@ -752,6 +1229,13 @@ async def process_edit_desc(message: Message, state: FSMContext):
             text = "❌ این تسک وجود ندارد"
         else:
             text = "❌ مشکلی در تغییر تسک به وجود آمد"
+
+        if res:
+            try:
+                task = TaskService.get_task_by_id(db=db, id=task_id)
+                await _notify_assigned_users(task, message.bot, "notify_task_updated_by_admin")
+            except Exception:
+                logger.exception("Failed to notify users about description change")
 
         # پیام اصلی که قبلاً ذخیره کردیم تغییر کنه
         await message.bot.edit_message_text(
@@ -879,9 +1363,15 @@ async def process_edit_end(message: Message, state: FSMContext):
         callback_message_id = data.get("callback_message_id")
         prev_error_msg_id = data.get("error_message_id")
 
-        # Try to parse Jalali date (YYYY-MM-DD)
+        # Try to parse Jalali date (YYYY-MM-DD) and ensure it is in the future
         new_end = jalali_to_gregorian(date_text)
+        error_key = None
         if not new_end:
+            error_key = "deadline_invalid_format"
+        elif not is_future_date(new_end):
+            error_key = "deadline_past_date"
+
+        if error_key:
             # Delete user's wrong message
             try:
                 await message.delete()
@@ -900,9 +1390,7 @@ async def process_edit_end(message: Message, state: FSMContext):
 
             # Send new error message and store its id
             try:
-                err_msg = await message.answer(
-                    t("deadline_invalid_format")
-                )
+                err_msg = await message.answer(t(error_key))
                 await state.update_data(error_message_id=err_msg.message_id)
             except Exception:
                 logger.exception("Could not send new error message")
@@ -920,6 +1408,11 @@ async def process_edit_end(message: Message, state: FSMContext):
         # Decide response text based on result
         if res:
             text = t("deadline_update_success")
+            try:
+                task = TaskService.get_task_by_id(db=db, id=task_id)
+                await _notify_assigned_users(task, message.bot, "notify_task_updated_by_admin")
+            except Exception:
+                logger.exception("Failed to notify users about deadline change")
         elif res == "NOT_EXIST":
             text = t("deadline_update_not_exist")
         else:
@@ -1110,10 +1603,10 @@ async def handle_select_user(callback_query: CallbackQuery, state: FSMContext):
             if user.telegram_id:
                 await bot.send_message(
                     chat_id=user.telegram_id,
-                    text=f"شما به تسک {task.title} اضافه شدید",
-                    reply_markup = InlineKeyboardMarkup(
+                    text=t("notify_task_assigned", title=task.title),
+                    reply_markup=InlineKeyboardMarkup(
                         inline_keyboard=[
-                            [InlineKeyboardButton(text="دیدن تسک", callback_data=f"show_task|{task_id}")]
+                            [InlineKeyboardButton(text=t("notify_task_assigned_btn"), callback_data=f"show_task|{task_id}")]
                         ]
                     )
                 )
@@ -1721,6 +2214,9 @@ async def handle_short_edits(message: Message):
                 if not parsed:
                     await message.answer(t("deadline_invalid_format"))
                     return
+                if not is_future_date(parsed):
+                    await message.answer(t("deadline_past_date"))
+                    return
                 callback_text = f"short_edit|time|{date_str}"
          
             if key == "attach":
@@ -1933,7 +2429,10 @@ async def short_edit_confirm(callback_query: CallbackQuery):
         elif edit_type == "time":
             end_date = jalali_to_gregorian(edit_value)
             if not end_date:
-                await callback_query.answer("❌ تاریخ نامعتبر است. فرمت درست: YYYY-MM-DD (شمسی)")
+                await callback_query.answer(t("deadline_invalid_format"))
+                return
+            if not is_future_date(end_date):
+                await callback_query.answer(t("deadline_past_date"))
                 return
             result = TaskService.edit_task(db=db, task_id=task_id, end_date=end_date)
             success_message = f"✅ تاریخ تسک تغییر کرد به : {edit_value}"
