@@ -111,17 +111,11 @@ def get_main_menu_keyboard(chat_type: ChatType, is_admin: bool = False) -> Reply
                 ])
 
     else:
-        keyboards.append(
-        [
-            KeyboardButton(text="/tasks"), 
-            
-        ])
-        keyboards.append(
-        [
-            KeyboardButton(text="/add"),
-            KeyboardButton(text="مدیریت کاربران"),
-            
-        ])
+        if is_admin:
+            keyboards.append([KeyboardButton(text="/tasks")])
+            keyboards.append([KeyboardButton(text="/add"), KeyboardButton(text="مدیریت کاربران")])
+        else:
+            keyboards.append([KeyboardButton(text="تسک های من")])
 
     keyboard = ReplyKeyboardMarkup(
         keyboard=keyboards,
@@ -147,4 +141,3 @@ async def del_message(sleep: float = 3.0, *args: Message) -> True | None :
         logger.exception(f"Failed to delete {errors} {"message" if errors == 1 else "messages"} from chat")
 
     return True
-

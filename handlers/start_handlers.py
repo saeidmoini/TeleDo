@@ -11,6 +11,7 @@ from config import config
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram import F
+from utils.texts import t
 
 class TopicStates(StatesGroup):
     waiting_for_name = State()
@@ -23,7 +24,7 @@ async def cmd_start_private(message: Message):
         db = next(get_db())
 
         if message.from_user.is_bot:
-            await message.answer("❌ ربات ها نمیتوانند از این ربات استفاده کنند ❌")
+            await message.answer(t("start_reject_bots"))
         
         # Get or create user based on mode
         if config.MODE == "DEV":
@@ -35,21 +36,18 @@ async def cmd_start_private(message: Message):
                 is_admin=True,
             )
             if not user:
-                await message.answer("❌ خطا در ایجاد کاربر")
+                await message.answer(t("start_create_user_error"))
                 return
         else:
-            # Production mode - only allow existing users
-            user = UserService.get_user(
+            # Production mode - create user if missing (non-admin by default)
+            user = UserService.get_or_create_user(
                 db=db,
-                user_tID=str(message.from_user.id),
+                telegram_id=str(message.from_user.id),
                 username=message.from_user.username,
+                is_admin=False,
             )
-
             if not user:
-                await message.answer(
-                    "❌ حساب کاربری شما پیدا نشد !\n\n"
-                    "احتمالا حساب شما مجوز استفاده از این سرویس رو ندارد"
-                )
+                await message.answer(t("start_create_account_error"))
                 return
         
         # Create keyboard for main menu
@@ -57,20 +55,19 @@ async def cmd_start_private(message: Message):
             keyboard = get_main_menu_keyboard(chat_type=ChatType.PRIVATE, is_admin=user.is_admin)
         except Exception:
             logger.exception("error occurred in creating keyboard buttons")
-            await message.answer("❌ خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await message.answer(t("generic_error"))
             return
 
         # Send welcome message with keyboard
         await message.answer(
-            f"سلام {message.from_user.first_name}! به ربات مدیریت تسک خوش آمدید.\n"
-            "شما به عنوان ادمین ثبت شدید.",
+            t("start_welcome_admin", first_name=message.from_user.first_name),
             reply_markup=keyboard
-        )       
+        )
     
     except Exception:
         logger.exception("Unexpected error occurred")
         try:
-            await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await message.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")   
     
@@ -97,7 +94,7 @@ async def cmd_start_group(message: Message, state: FSMContext):
         )
         is_admin = chat_member.status in ["administrator", "creator"]
         if not is_admin:
-            await message.answer("❌ فقط ادمین‌ها یا مالک گروه می‌توانند ربات را راه اندازی کنند.")
+            await message.answer(t("start_group_admins_only"))
             return
 
         # In DEV mode: create or get the user and automatically mark as admin
@@ -116,7 +113,7 @@ async def cmd_start_group(message: Message, state: FSMContext):
                 username=message.from_user.username,
             )
             if not user or not user.is_admin:
-                await message.answer("❌ شما دسترسی به اجرای این عملیات ندارید")
+                await message.answer(t("start_group_admin_required"))
                 return
 
         # Create or fetch the group record in the database
@@ -125,7 +122,7 @@ async def cmd_start_group(message: Message, state: FSMContext):
         )
         if not group:
             logger.exception("error occurred in creating group")
-            await message.answer("❌ خطایی در پیدا کردن گروه رخ داد. لطفاً دوباره تلاش کنید.")
+            await message.answer(t("start_group_create_error"))
             return
 
         # If the message was sent inside a topic (thread) within a supergroup
@@ -133,7 +130,7 @@ async def cmd_start_group(message: Message, state: FSMContext):
             topic = TaskService.get_topic(db=db, tID=str(topicID))
             if topic:
                 await message.answer(
-                    f"✅ ربات با موفقیت راه اندازی شد!\n"
+                    t("start_group_already_started")
                 )
                 return
             # Save temporary topic-related data into FSM context
@@ -147,9 +144,7 @@ async def cmd_start_group(message: Message, state: FSMContext):
 
             # Ask the admin to provide a custom name for this topic
             await message.answer(
-                f"📌 پیام از یک تاپیک دریافت شد.\n"
-                f"🔗 لینک تاپیک: {topic_link}\n\n"
-                f"لطفاً یک نام برای این تاپیک وارد کنید:"
+                t("start_topic_prompt", topic_link=topic_link)
             )
             # Move conversation into a waiting state to capture the topic name
             await state.set_state(TopicStates.waiting_for_name)
@@ -157,16 +152,14 @@ async def cmd_start_group(message: Message, state: FSMContext):
 
         # If the message is not inside a topic, just complete the group setup
         await message.answer(
-            f"✅ ربات با موفقیت راه اندازی شد!\n"
-            f"گروه {message.chat.title} ثبت شد.\n"
-            f"شما به عنوان ادمین ثبت شدید."
+            t("start_group_success", group_title=message.chat.title)
         )
 
     except Exception:
         # Catch and log any unexpected error during setup
         logger.exception("Unexpected error occurred")
         try:
-            await message.answer("❌ خطایی در راه اندازی ربات رخ داد.")
+            await message.answer(t("start_group_unexpected"))
         except Exception:
             logger.exception("Failed to send error message")
     
@@ -202,24 +195,22 @@ async def process_topic_name(message: Message, state: FSMContext):
             link=topic_link
         )
         if not topic:
-            await message.answer("❌ خطا در ذخیره‌سازی تاپیک رخ داد.")
+            await message.answer(t("start_topic_save_error"))
             return
 
         # Prepare and return the main group keyboard
-        keyboard = get_main_menu_keyboard(chat_type=ChatType.GROUP)
+        keyboard = get_main_menu_keyboard(chat_type=ChatType.GROUP, is_admin=True)
 
         # Send confirmation to the admin with topic details
         await message.answer(
-            f"✅ تاپیک با موفقیت ثبت شد!\n\n"
-            f"📌 نام: {topic_name}\n"
-            f"🔗 لینک: {topic_link}",
+            t("start_topic_save_success", topic_name=topic_name, topic_link=topic_link),
             reply_markup=keyboard
         )
 
     except Exception:
         # Catch and log any error during topic saving
         logger.exception("Failed to save topic")
-        await message.answer("❌ خطا در ذخیره‌سازی تاپیک رخ داد.")
+        await message.answer(t("start_topic_save_error"))
     
     finally:
         # Always close the database connection and reset FSM state

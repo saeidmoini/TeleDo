@@ -7,7 +7,13 @@ from config import config
 from handlers import main_router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
-from aiogram.types import BotCommand, BotCommandScopeChat, BotCommandScopeDefault
+from aiogram.types import (
+    BotCommand,
+    BotCommandScopeChat,
+    BotCommandScopeDefault,
+    BotCommandScopeAllChatAdministrators,
+    BotCommandScopeAllGroupChats,
+)
 from models import User, init_db
 from services.user_services import UserService
 from database import get_db
@@ -77,8 +83,8 @@ else:
 async def set_commands(bot: Bot):
     """
     Register command menus for users and admins.
-    - Default scope: regular users only see /tasks for their own items.
-    - Admin scope (per admin chat): /tasks for full task control and /users for user management.
+    - Default scope: keep the original private chat menus.
+    - Group scopes: admins see task management shortcuts, members only see /attach.
     """
     user_commands = [
         BotCommand(
@@ -98,10 +104,33 @@ async def set_commands(bot: Bot):
         ),
     ]
 
+    group_user_commands = [
+        BotCommand(command="/attach", description="افزودن فایل به تسک"),
+    ]
+
+    group_admin_commands = [
+        BotCommand(command="/add", description="ایجاد تسک جدید"),
+        BotCommand(command="/user", description="افزودن کاربر به تسک"),
+        BotCommand(command="/title", description="تغییر عنوان تسک"),
+        BotCommand(command="/desc", description="ویرایش توضیحات تسک"),
+        BotCommand(command="/time", description="تنظیم ددلاین تسک"),
+        BotCommand(command="/attach", description="افزودن فایل به تسک"),
+    ]
+
     try:
         await bot.set_my_commands(user_commands, scope=BotCommandScopeDefault())
     except Exception:
         logger.exception("Failed to set default (user) commands")
+
+    try:
+        await bot.set_my_commands(group_user_commands, scope=BotCommandScopeAllGroupChats())
+    except Exception:
+        logger.exception("Failed to set default group commands")
+
+    try:
+        await bot.set_my_commands(group_admin_commands, scope=BotCommandScopeAllChatAdministrators())
+    except Exception:
+        logger.exception("Failed to set admin group commands")
 
     admin_chat_ids = set()
     db = None

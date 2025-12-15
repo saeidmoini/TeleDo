@@ -13,6 +13,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.filters.state import StateFilter
 import re
+from utils.texts import t
 
 
 # ===== Main view: Show and manage users =====
@@ -64,7 +65,7 @@ async def view_users(
                 else f"toggle_user|{user.id}|{user_tID}"
             )
             admin_button = InlineKeyboardButton(
-                text="⬇️ تبدیل به کاربر عادی" if user.is_admin else "⬆️ ادمین کردن",
+                text=t("user_btn_demote") if user.is_admin else t("user_btn_promote"),
                 callback_data=toggle_callback
             )
 
@@ -78,54 +79,54 @@ async def view_users(
             # Append buttons for this user
             keyboard.inline_keyboard.append([
                 admin_button,
-                InlineKeyboardButton(text="🗑 حذف", callback_data=delete_callback),
-                InlineKeyboardButton(text=f"👤 {user.username}", callback_data=f"info|{user.id}")
+                InlineKeyboardButton(text=t("user_btn_delete"), callback_data=delete_callback),
+                InlineKeyboardButton(text=t("user_btn_info", username=user.username), callback_data=f"info|{user.id}")
             ])
 
         # Add "Add user" button
-        keyboard.inline_keyboard.append([InlineKeyboardButton(text="➕ افزودن کاربر", callback_data="add_user")])
+        keyboard.inline_keyboard.append([InlineKeyboardButton(text=t("user_btn_add"), callback_data="add_user")])
 
         # Handle empty user list
         if user_count == 0:
-            response = await message.answer("❌ هیچ کاربری پیدا نشد")
+            response = await message.answer(t("user_none_found"))
             await del_message(3, response)
             return
 
         # Add "Finish" and "Refresh" buttons
         finish_callback = f"finish_operation|{original_message_id}" if original_message_id else "finish_operation"
         keyboard.inline_keyboard.append([
-            InlineKeyboardButton(text="✅ اتمام عملیات", callback_data=finish_callback),
+            InlineKeyboardButton(text=t("user_btn_finish"), callback_data=finish_callback),
         ])
 
         refresh_callback = f"refresh_operation|{original_message_id}|{user_tID}"
         keyboard.inline_keyboard.append([
-            InlineKeyboardButton(text="🔄 رفرش", callback_data=refresh_callback),
+            InlineKeyboardButton(text=t("user_btn_refresh"), callback_data=refresh_callback),
         ])
 
         # Send or edit message accordingly
         if callback_query is None:
-            await message.answer(f"👥 مدیریت کاربران (تعداد: {user_count})", reply_markup=keyboard)
+            await message.answer(t("user_manage_title", user_count=user_count), reply_markup=keyboard)
         else:
             try:
                 await callback_query.message.edit_text(
-                    f"👥 مدیریت کاربران (تعداد: {user_count})",
+                    t("user_manage_title", user_count=user_count),
                     reply_markup=keyboard
                 )
                 await callback_query.answer()
             except TelegramBadRequest:
-                await callback_query.answer("رفرش با موفقیت انجام شد 🔄")
+                await callback_query.answer(t("user_refresh_success"))
             except Exception:
                 logger.exception("Faild to edit user-management message after refresh")
-                await callback_query.answer("❌ مشکلی در رفرش به وجود آمد")
+                await callback_query.answer(t("generic_error"))
 
     except Exception:
         # Log unexpected errors
         logger.exception("Unexpected error occurred")
         try:
             if message:
-                await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+                await message.answer(t("generic_error"))
             elif callback_query:
-                await callback_query.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+                await callback_query.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")
     finally:
@@ -156,11 +157,11 @@ async def handle_del_user(callback_query: CallbackQuery):
         # Perform delete action
         del_user = UserService.del_user(db=db, user_ID=user_ID)
         if del_user is None:
-            await callback_query.answer("❌ مشکلی در حذف کاربر به وجود آمد. لطفاً دوباره تلاش کنید")
+            await callback_query.answer(t("user_delete_error"))
         elif del_user == "NOT_EXIST":
-            await callback_query.answer("❌ این کاربر وجود ندارد")
+            await callback_query.answer(t("user_not_found"))
         else:
-            await callback_query.answer("✅ کاربر با موفقیت حذف شد.")
+            await callback_query.answer(t("user_delete_success"))
 
         # Refresh view after delete
         await view_users(
@@ -173,7 +174,7 @@ async def handle_del_user(callback_query: CallbackQuery):
     except Exception:
         logger.exception("Unexpected error occurred")
         try:
-            await callback_query.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await callback_query.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")
     finally:
@@ -208,7 +209,7 @@ async def handle_refresh(callback_query: CallbackQuery):
     except Exception:
         logger.exception("Unexpected error occurred")
         try:
-            await callback_query.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await callback_query.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")
     finally:
@@ -240,12 +241,12 @@ async def finish_operation(callback_query: CallbackQuery):
             except Exception as e:
                 logger.warning(f"Could not delete original message: {e}")
 
-        await callback_query.answer("✅ عملیات با موفقیت پایان یافت")
+        await callback_query.answer(t("user_finish_success"))
 
     except Exception:
         logger.exception("Unexpected error occurred")
         try:
-            await callback_query.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await callback_query.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")
 
@@ -267,10 +268,10 @@ async def handle_toggle_user(callback_query: CallbackQuery):
         # Toggle user role
         res = UserService.toggle_user(db=db, user_ID=user_ID)
         if not res:
-            await callback_query.answer("❌ مشکلی در تغییر رول این کاربر به وجود آمد")
+            await callback_query.answer(t("user_toggle_error"))
             return
 
-        await callback_query.answer("✅ رول کاربر با موفقیت تغییر کرد")
+        await callback_query.answer(t("user_toggle_success"))
 
         # Refresh updated view
         await view_users(
@@ -283,7 +284,7 @@ async def handle_toggle_user(callback_query: CallbackQuery):
     except Exception:
         logger.exception("Unexpected error occurred")
         try:
-            await callback_query.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await callback_query.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")
     finally:
@@ -310,14 +311,14 @@ async def start_add_user(callback_query: CallbackQuery, state: FSMContext):
             user_tID=str(callback_query.from_user.id)
         )
         msg = await callback_query.message.answer(
-            "لطفاً یوزرنیم کاربر را ارسال کنید یا به پیام کاربر ریپلای کنید.\nمثال: @username"
+            t("user_add_prompt")
         )
         await state.update_data(prompt_message_id=msg.message_id)
         await state.set_state(AddUserStates.waiting_for_username)
     except Exception:
         logger.exception("Failed to start add-user flow")
         try:
-            await callback_query.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await callback_query.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to answer callback_query in start_add_user")
 
@@ -327,15 +328,15 @@ async def add_user_directly(db, message: Message, username: str):
     """Add a user directly by username"""
     user_exist = UserService.get_user(db=db, username=username)
     if user_exist is not None:
-        response = await message.answer("❌ این کاربر از قبل وجود دارد")
+        response = await message.answer(t("user_exists"))
         await del_message(3, response, message)
         return
 
     add_res = UserService.get_or_create_user(db=db, username=username)
     if not add_res:
-        response = await message.answer("❌ مشکلی در افزودن کاربر به وجود آمد. لطفاً دوباره تلاش کنید")
+        response = await message.answer(t("user_add_error"))
     else:
-        response = await message.answer("✅ کاربر با موفقیت اضافه شد.")
+        response = await message.answer(t("user_add_success"))
 
     await del_message(3, response, message)
     return
@@ -359,7 +360,7 @@ async def process_add_user_input(message: Message, state: FSMContext):
             await add_user_directly(db=db, message=message, username=username)
         else:
             response = await message.answer(
-                "❌ دستور وارد شده معتبر نیست. یوزرنیم را به صورت @username ارسال کنید یا به پیام کاربر ریپلای کنید."
+                t("user_invalid_username")
             )
             await del_message(3, response, message)
             return
@@ -369,7 +370,7 @@ async def process_add_user_input(message: Message, state: FSMContext):
     except Exception:
         logger.exception("Unexpected error in add-user flow")
         try:
-            await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await message.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message in process_add_user_input")
     

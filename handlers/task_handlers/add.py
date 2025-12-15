@@ -14,6 +14,8 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from config import config
 from utils.texts import t
 
+CANCEL_TEXT = t("btn_cancel")
+
 # ===== Handler for create new task in group/supergroup chats =====
 @router.message(Command("add"), chat_type_filter(ChatType.GROUP))
 @router.message(Command("add"), chat_type_filter(ChatType.SUPERGROUP))
@@ -23,6 +25,12 @@ async def add_task(message: Message):
         db = next(get_db())  # Open database session
 
         group = TaskService.get_group(db, tID=str(message.chat.id))
+        if not group:
+            group = TaskService.get_or_create_group(db=db, telegram_group_id=str(message.chat.id), name=message.chat.title)
+            if not group:
+                response = await message.answer(t("task_group_create_error"))
+                await del_message(3, response, message)
+                return
 
         # Check if user is an admin of the group
         chat_member = await message.bot.get_chat_member(
@@ -32,7 +40,7 @@ async def add_task(message: Message):
         is_admin = chat_member.status in ['administrator', 'creator']
         if not is_admin:
             response = await message.answer(
-                "اجرای این دستور فقط توسط ادمین ممکن است ❌\n"
+                t("no_permission_cmd")
             )
             # Delete response and message after 3 seconds
             await del_message(3, response, message)
@@ -42,7 +50,7 @@ async def add_task(message: Message):
         user = UserService.get_user(db=db, user_tID=str(message.from_user.id))
         if not user or not user.is_admin:
             response = await message.answer(
-                "اجرای این دستور فقط توسط ادمین ممکن است ❌\n"
+                t("no_permission_cmd")
             )
             # Delete response and message after 3 seconds
             await del_message(3, response, message)
@@ -61,14 +69,12 @@ async def add_task(message: Message):
                 original_text = original_text.strip()
                 add_res = TaskService.create_task(db=db, title=original_text, admin_id=user.id, group_id=group.id, topic_id=topic)
                 if not add_res:
-                    response = await message.answer("❌ مشکلی در ساخت تسک به وجود آمد. لطفاً دوباره تلاش کنید")    
+                    response = await message.answer(t("task_create_failed"))
                 else:
-                    response = await message.answer("✅ تسک با موفقیت ساخته شد.")
+                    response = await message.answer(t("task_create_success"))
             else:
                 response = await message.answer(
-                    "❌\n"
-                    "پیامی که به آن ریپلای زدید مقدار معتبری ندارد\n"
-                    "و نمیتواند به عنوان نام تسک باشد"
+                    t("task_invalid_reply_text")
                 )
         # /add with task name directly in the same message
         elif len(message.text.strip()) > len("/add"):
@@ -76,18 +82,16 @@ async def add_task(message: Message):
                     task_name = message.text.split("/add", maxsplit=1)[1].strip()
                 except Exception:
                     logger.exception("Failed to processing task_name")
-                    response = await message.answer("❌ مشکلی در پردازش نام تسک به وجود آمد. لطفاً دوباره تلاش کنید")    
+                    response = await message.answer(t("task_process_name_error"))
                 add_res = TaskService.create_task(db=db, title=task_name, admin_id=user.id, group_id=group.id, topic_id=topic)
                 if not add_res:
-                    response = await message.answer("❌ مشکلی در ساخت تسک به وجود آمد. لطفاً دوباره تلاش کنید")    
+                    response = await message.answer(t("task_create_failed"))    
                 else:
-                    response = await message.answer("✅ تسک با موفقیت ساخته شد.")
+                    response = await message.answer(t("task_create_success"))
         # Invalid usage of /add command
         else:
             response = await message.answer(
-                "❌ دستور شما معتبر نیست.\n"
-                "برای اضافه کردن تسک دستور را به شکل `/add عنوان_تسک` ارسال کنید.\n"
-                "یا ابتدا یک پیام متنی بفرستید و سپس روی همان پیام ریپلای کرده و /add را ارسال کنید."
+                t("task_add_invalid_usage")
             )
             # Delete response and message after 3 seconds
             await del_message(3, response, message)
@@ -100,7 +104,7 @@ async def add_task(message: Message):
         # Log unexpected error and try to notify user
         logger.exception("Unexpected error occurred")
         try:
-            await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await message.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")   
     
@@ -125,9 +129,7 @@ async def add_task_in_private(message: Message, state: FSMContext):
         # Check if user exists in DB and is admin
         user = UserService.get_user(db=db, user_tID=str(message.from_user.id))
         if not user or not user.is_admin:
-            response = await message.answer(
-                "اجرای این دستور فقط توسط ادمین ممکن است ❌\n"
-            )
+            response = await message.answer(t("no_permission_cmd"))
 
             # Delete response and message after 3 seconds
             await del_message(3, response, message)
@@ -140,17 +142,15 @@ async def add_task_in_private(message: Message, state: FSMContext):
                 original_text = original_text.strip()
                 add_res = TaskService.create_task(db=db, title=original_text, admin_id=user.id)
                 if not add_res:
-                    response = await message.answer("❌ مشکلی در ساخت تسک به وجود آمد. لطفاً دوباره تلاش کنید")    
+                    response = await message.answer(t("task_create_failed"))
                 else:
-                    response = await message.answer("✅ تسک با موفقیت ساخته شد.")
+                    response = await message.answer(t("task_create_success"))
                 # Delete response and message after 3 seconds
                 await del_message(3, response, message)
                 return
             else:
                 response = await message.answer(
-                    "❌\n"
-                    "پیامی که به آن ریپلای زدید مقدار معتبری ندارد\n"
-                    "و نمیتواند به عنوان نام تسک باشد"
+                    t("task_invalid_reply_text")
                 )
                 # Delete response and message after 3 seconds
                 await del_message(3, response, message)
@@ -159,7 +159,7 @@ async def add_task_in_private(message: Message, state: FSMContext):
         else:
             # Create cancel keyboard
             cancel_keyboard = ReplyKeyboardMarkup(
-                keyboard=[[KeyboardButton(text="❌ کنسل کردن")]],
+                keyboard=[[KeyboardButton(text=CANCEL_TEXT)]],
                 resize_keyboard=True,
                 one_time_keyboard=True
             )
@@ -175,7 +175,7 @@ async def add_task_in_private(message: Message, state: FSMContext):
                 )
             except Exception:
                 await state.clear()
-                error_response = await message.answer("❌ خطایی در ساخت تسک به وجود آمد")
+                error_response = await message.answer(t("generic_error"))
                 logger.exception("Failed to update state data")
                 # Delete response and message after 3 seconds
                 await del_message(3, error_response, message)
@@ -184,8 +184,7 @@ async def add_task_in_private(message: Message, state: FSMContext):
             
             # Request task title
             response = await message.answer(
-                "📝 لطفاً عنوان تسک را وارد کنید:\n\n"
-                "یا برای کنسل کردن ❌ کنسل کردن را بزنید",
+                t("task_enter_title_prompt"),
                 reply_markup=cancel_keyboard
             )
             
@@ -197,7 +196,7 @@ async def add_task_in_private(message: Message, state: FSMContext):
                 await state.update_data(message_ids=message_ids)
             except Exception:
                 await state.clear()
-                error_response = await message.answer("❌ خطایی در ساخت تسک به وجود آمد")
+                error_response = await message.answer(t("generic_error"))
                 logger.exception("Failed to add response id to message_ids in state data")
                 # Delete response and message after 3 seconds
                 await del_message(3, error_response, message)
@@ -211,7 +210,7 @@ async def add_task_in_private(message: Message, state: FSMContext):
         # Log unexpected error and try to notify user
         logger.exception("Unexpected error occurred")
         try:
-            await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await message.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")   
     
@@ -223,7 +222,7 @@ async def add_task_in_private(message: Message, state: FSMContext):
             except Exception:
                 logger.exception("Failed to close db")
 
-@router.message(AddTaskStates.waiting_for_title, F.text == "❌ کنسل کردن")
+@router.message(AddTaskStates.waiting_for_title, F.text == CANCEL_TEXT)
 async def cancel_add_task(message: Message, state: FSMContext):
     """Handle cancel operation during task addition"""
     try:
@@ -238,7 +237,7 @@ async def cancel_add_task(message: Message, state: FSMContext):
 
         # Send cancellation message
         await message.answer(
-            "❌ عملیات افزودن تسک کنسل شد.",
+            t("task_add_cancelled"),
             reply_markup=keyboard
         )
         
@@ -264,7 +263,7 @@ async def cancel_add_task(message: Message, state: FSMContext):
         # Log unexpected error and try to notify user
         logger.exception("Unexpected error occurred")
         try:
-            await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await message.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")  
 

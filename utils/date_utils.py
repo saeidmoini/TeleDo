@@ -30,3 +30,37 @@ def is_future_date(dt: datetime | None) -> bool:
     if not dt:
         return False
     return dt.date() > datetime.now().date()
+
+
+def parse_flexible_date(date_str: str) -> datetime | None:
+    """
+    Try to parse a date string in several common formats.
+    Supports Jalali (YYYY-MM-DD) and a handful of Gregorian layouts.
+    Returns a datetime on success, otherwise None.
+    """
+    if not date_str:
+        return None
+
+    cleaned = date_str.strip()
+
+    # Try Jalali first
+    jalali_dt = jalali_to_gregorian(cleaned)
+    if jalali_dt:
+        return jalali_dt
+
+    formats = (
+        "%Y-%m-%d",
+        "%Y/%m/%d",
+        "%Y.%m.%d",
+        "%d-%m-%Y",
+        "%d/%m/%Y",
+        "%d.%m.%Y",
+    )
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(cleaned, fmt)
+        except Exception:
+            continue
+
+    return None

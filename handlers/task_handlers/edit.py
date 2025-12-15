@@ -18,7 +18,7 @@ from aiogram.exceptions import TelegramBadRequest
 import re
 import uuid
 from config import config
-from utils.date_utils import gregorian_to_jalali, jalali_to_gregorian, is_future_date
+from utils.date_utils import gregorian_to_jalali, jalali_to_gregorian, is_future_date, parse_flexible_date
 from utils.texts import t
 
 media_cache = {}
@@ -2155,8 +2155,61 @@ async def handle_my_tasks_message(message: Message):
 async def handle_my_tasks_callback(callback: CallbackQuery):
     await handle_my_tasks(event=callback)
 
-# ===== Short Edit Commands Handler (Time, Attach, Des and Name commands) =====
+
+# ===== Command Picker (prefills input instead of sending) =====
+@router.message(Command("commands"))
+@router.message(Command("menu"))
+@router.message(F.text.in_({"/commands", "commands", "/menu", "menu"}))
+async def handle_command_picker(message: Message):
+    try:
+        # Allow in both group and supergroup. In private, fall back to admin-only set.
+        is_group = message.chat.type in ("group", "supergroup")
+
+        chat_member = None
+        is_admin = False
+        if is_group:
+            chat_member = await message.bot.get_chat_member(
+                chat_id=message.chat.id,
+                user_id=message.from_user.id
+            )
+            is_admin = chat_member.status in ["administrator", "creator"]
+        else:
+            # Private: trust DB check if available
+            db = next(get_db())
+            is_admin = bool(UserService.is_admin(db=db, user_tID=str(message.from_user.id)))
+            db.close()
+
+        buttons = []
+        if is_admin:
+            buttons.extend([
+                [InlineKeyboardButton(text="➕ /add", switch_inline_query_current_chat="/add ")],
+                [InlineKeyboardButton(text="👤 /user", switch_inline_query_current_chat="/user ")],
+                [InlineKeyboardButton(text="🏷️ /title", switch_inline_query_current_chat="/title ")],
+                [InlineKeyboardButton(text="📝 /desc", switch_inline_query_current_chat="/desc ")],
+                [InlineKeyboardButton(text="⏳ /time", switch_inline_query_current_chat="/time ")],
+                [InlineKeyboardButton(text="📎 /attach", switch_inline_query_current_chat="/attach ")],
+            ])
+        else:
+            buttons.append(
+                [InlineKeyboardButton(text="📎 /attach", switch_inline_query_current_chat="/attach ")]
+            )
+
+        await message.answer(
+            "یک فرمان را انتخاب کنید تا در کادر نوشتار قرار گیرد و خودتان متن را کامل و ارسال کنید.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+        )
+    except Exception:
+        logger.exception("Failed to send command picker")
+        try:
+            await message.answer(t("generic_error"))
+        except Exception:
+            logger.exception("Failed to send fallback error in command picker")
+
+
+# ===== Short Edit Commands Handler (Time, Attach, Desc and Title commands) =====
+@router.message(Command("title"))
 @router.message(Command("name"))
+@router.message(Command("desc"))
 @router.message(Command("des"))
 @router.message(Command("attach"))
 @router.message(Command("time"))
@@ -2166,89 +2219,89 @@ async def handle_short_edits(message: Message):
         db = next(get_db())
         current_user = UserService.get_user(db=db, user_tID=str(message.from_user.id))
         is_admin = UserService.is_admin(db=db, user_tID=message.from_user.id)
-        if message.text != "/attach" and not is_admin:
+
+        # Restrict non-admins to /attach only
+        if message.text.lower().split()[0] != "/attach" and not is_admin:
             await message.delete()
             em = await message.answer(t("no_permission_cmd"))
             await del_message(3, em)
+            return
 
-        # Define command patterns with regex
-        patterns = {
-            # /name <any non-empty text>
-            "name": re.compile(r"^/name\s+(.+)$", re.IGNORECASE),
+        # Figure out which command was used and grab the payload from either:
+        # 1) text after the command, or 2) the replied message.
+        cmd_token = message.text.split()[0].lower().lstrip("/")
+        command_used = cmd_token.split("@")[0]
+        value_text = None
 
-            # /des <any non-empty text>
-            "des": re.compile(r"^/des\s+(.+)$", re.IGNORECASE),
+        parts = message.text.split(maxsplit=1)
+        if len(parts) > 1 and parts[1].strip():
+            value_text = parts[1].strip()
+        elif message.reply_to_message:
+            reply_text = (message.reply_to_message.text or message.reply_to_message.caption or "").strip()
+            value_text = reply_text if reply_text else None
 
-            # /time YYYY-MM-DD (validated later with datetime)
-            "time": re.compile(r"^/time\s+(\d{4}-\d{2}-\d{2})$", re.IGNORECASE),
-
-            # /attach or /atach optionally followed by a filename or argument
-            # Accept both spellings and allow optional argument
-            "attach": re.compile(r"^/(?:attach|atach)(?:\s+(.+))?$", re.IGNORECASE),
-        }
-        
-        text = message.text.strip()
         callback_text = None
 
-        # Iterate over command patterns to match the message
-        for key, pattern in patterns.items():
-            m = pattern.match(text)
-            if not m:
-                continue
+        if command_used in ("title", "name"):
+            if not value_text:
+                em = await message.answer(t("invalid_command"))
+                await del_message(3, em, message)
+                return
+            callback_text = f"short_edit|name|{value_text}"
 
-            # Extract value (may be None for /attach without argument)
-            value = m.group(1) if m.groups() else None
+        elif command_used in ("desc", "des"):
+            if not value_text:
+                em = await message.answer(t("invalid_command"))
+                await del_message(3, em, message)
+                return
+            callback_text = f"short_edit|des|{value_text}"
 
-            if key == "name":
-                # Name must be non-empty (regex ensures this)
-                new_name = value.strip()
-                callback_text = f"short_edit|name|{new_name}"
+        elif command_used == "time":
+            if not value_text:
+                em = await message.answer(t("deadline_invalid_format"))
+                await del_message(3, em, message)
+                return
+            parsed = parse_flexible_date(value_text)
+            if not parsed:
+                em = await message.answer(t("deadline_invalid_format"))
+                await del_message(3, em, message)
+                return
+            if not is_future_date(parsed):
+                em = await message.answer(t("deadline_past_date"))
+                await del_message(3, em, message)
+                return
+            callback_text = f"short_edit|time|{value_text}"
 
-            if key == "des":
-                new_desc = value.strip()
-                callback_text = f"short_edit|des|{new_desc}"
+        elif command_used in ("attach", "atach"):
+            # Ensure the command is a reply to a message containing media
+            if not message.reply_to_message:
+                em = await message.answer("???? ????? ???? ????? ???? ??? ???? ???? ???? ?????? ???? ? ??? /attach ?? ???????.")
+                await del_message(3, em, message)
+                return
 
-            if key == "time":
-                date_str = value
-                parsed = jalali_to_gregorian(date_str)
-                if not parsed:
-                    await message.answer(t("deadline_invalid_format"))
-                    return
-                if not is_future_date(parsed):
-                    await message.answer(t("deadline_past_date"))
-                    return
-                callback_text = f"short_edit|time|{date_str}"
-         
-            if key == "attach":
-                # Ensure the command is a reply to a message containing media
-                if not message.reply_to_message:
-                    em = await message.answer("برای اضافه کردن فایل، ابتدا روی پیام حاوی فایل ریپلای کنید و سپس /attach را بفرستید.")
-                    await del_message(3, em, message)
-                    return
+            reply_msg = message.reply_to_message
+            file_ids = []
 
-                reply_msg = message.reply_to_message
-                file_ids = []
+            # Collect file_ids from all possible media types in the replied message
+            if reply_msg.photo:
+                file_ids.append(reply_msg.photo[-1].file_id)
+            if reply_msg.video:
+                file_ids.append(reply_msg.video.file_id)
+            if reply_msg.audio:
+                file_ids.append(reply_msg.audio.file_id)
+            if reply_msg.voice:
+                file_ids.append(reply_msg.voice.file_id)
+            if reply_msg.document:
+                file_ids.append(reply_msg.document.file_id)
 
-                # Collect file_ids from all possible media types in the replied message
-                if reply_msg.photo:
-                    file_ids.append(reply_msg.photo[-1].file_id)
-                if reply_msg.video:
-                    file_ids.append(reply_msg.video.file_id)
-                if reply_msg.audio:
-                    file_ids.append(reply_msg.audio.file_id)
-                if reply_msg.voice:
-                    file_ids.append(reply_msg.voice.file_id)
-                if reply_msg.document:
-                    file_ids.append(reply_msg.document.file_id)
+            # Generate a unique key for storing these files in memory
+            media_key = str(uuid.uuid4()) 
+            media_cache[media_key] = file_ids
 
-                # Generate a unique key for storing these files in memory
-                media_key = str(uuid.uuid4()) 
-                media_cache[media_key] = file_ids
+            # Set callback text for the attach operation
+            callback_text = f"short_edit|attach|{media_key}"
 
-                # Set callback text for the attach operation
-                callback_text = f"short_edit|attach|{media_key}"
-
-        # If no command pattern matched, notify the user
+        # If no command matched or we didn't get a value, notify the user
         if not callback_text:
             em = await message.answer(t("invalid_command"))
             await del_message(3, em, message)
@@ -2271,7 +2324,7 @@ async def handle_short_edits(message: Message):
                     em = await message.answer(t("no_tasks_group"))
                     await del_message(3, message, em)
                     return
-                tasks = TaskService.get_all_tasks(db=db, group_id=group.id)
+                tasks = TaskService.get_all_tasks(db=db, group_id=group.id, topic_id=False)
         else:
             em = await message.answer(t("only_group_command"))
             await del_message(3, em)
@@ -2289,12 +2342,12 @@ async def handle_short_edits(message: Message):
             em = await message.answer(t("no_tasks_found"))
             await del_message(3, em, message)
             return
-        
+
         # Prepare inline keyboard for selecting task
         keyboard = []
-        for t in tasks:
+        for task_item in tasks:
             keyboard.append([
-                InlineKeyboardButton(text=t.title, callback_data=f"{callback_text}|{t.id}")
+                InlineKeyboardButton(text=task_item.title, callback_data=f"{callback_text}|{task_item.id}")
             ])
 
         await message.answer(
@@ -2302,14 +2355,14 @@ async def handle_short_edits(message: Message):
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
         )
         await message.delete()
-    
+
     except Exception:
         logger.exception("Unexpected error occurred")
         try:
             await message.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")
-    
+
     finally:
         # Ensure DB session is closed
         if db:
@@ -2330,45 +2383,75 @@ async def handle_short_users_edits(message: Message):
         permission = await admin_require(db=db, message=message)
         if not permission:
             return
-        
+
         await message.delete()
+
+        # Determine target user either from reply or from the argument
+        target_username = None
+        target_telegram_id = None
+        if message.reply_to_message and message.reply_to_message.from_user and not message.reply_to_message.from_user.is_bot:
+            target_telegram_id = message.reply_to_message.from_user.id
+            target_username = message.reply_to_message.from_user.username
+        else:
+            parts = message.text.split(maxsplit=1)
+            if len(parts) > 1 and parts[1].strip():
+                target_username = parts[1].strip().lstrip("@")
+
+        if not target_username and target_telegram_id:
+            target_username = f"user_{target_telegram_id}"
+
+        if not (target_username or target_telegram_id):
+            em = await message.answer("???? ???? ???? ?????? ??? ?????? ?? ??? ?? /user ??????? ?? ??? ???? ?? ?????? ???? ? /user ?? ???????.")
+            await del_message(3, em, message)
+            return
+
+        target_user = UserService.get_or_create_user(
+            db=db,
+            username=target_username,
+            telegram_id=target_telegram_id or None,
+            is_admin=False,
+        )
+        if not target_user:
+            em = await message.answer("????? ???? ??? ?? ????? ???? ???? ?????.")
+            await del_message(3, em, message)
+            return
 
         # Fetch tasks depending on chat type and topic
         if message.chat.type in ("group", "supergroup"):
             if message.is_topic_message:
                 topic = TaskService.get_topic(db=db, tID=str(message.message_thread_id))
                 if not topic:
-                    em = await message.answer("هیچ تسکی برای این تاپیک وجود ندارد")
+                    em = await message.answer(t("no_tasks_topic"))
                     await del_message(3, message, em)
                     return
                 tasks = TaskService.get_all_tasks(db=db, topic_id=topic.id)
             else:
                 group = TaskService.get_group(db=db, tID=str(message.chat.id))
                 if not group:
-                    em = await message.answer("هیچ تسکی برای این گروه وجود ندارد")
+                    em = await message.answer(t("no_tasks_group"))
                     await del_message(3, message, em)
                     return
-                tasks = TaskService.get_all_tasks(db=db, group_id=group.id)
+                tasks = TaskService.get_all_tasks(db=db, group_id=group.id, topic_id=False)
         else:
-            em = await message.answer("❌ اجرای این دستور فقط در گروه ممکن است")
+            em = await message.answer(t("only_group_command"))
             await del_message(3, em)
             return
 
         # If no tasks found, notify user
         if not tasks:
-            em = await message.answer("❌ هیچ تسکی پیدا نشد")
+            em = await message.answer(t("no_tasks_found"))
             await del_message(3, em, message)
             return
-        
+
         # Prepare inline keyboard for selecting task
         keyboard = []
-        for t in tasks:
+        for tsk in tasks:
             keyboard.append([
-                InlineKeyboardButton(text=t.title, callback_data=f"add_user|{t.id}")
+                InlineKeyboardButton(text=tsk.title, callback_data=f"assign_user_direct|{target_user.id}|{tsk.id}")
             ])
 
         await message.answer(
-            "تسک مورد نظر را برای اعمال این عملیات انتحاب کنید",
+            t("select_task_prompt"),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
         )
 
@@ -2376,10 +2459,10 @@ async def handle_short_users_edits(message: Message):
         # Log unexpected errors
         logger.exception("Unexpected error occurred")
         try:
-            await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await message.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")   
-    
+
     finally:
         # Always close the database connection
         if db is not None:
@@ -2388,7 +2471,52 @@ async def handle_short_users_edits(message: Message):
             except Exception:
                 logger.exception("Failed to close db")
 
+
+# ===== Callback Handler for Assigning User Directly =====
+@router.callback_query(F.data.startswith("assign_user_direct|"))
+async def handle_assign_user_direct(callback_query: CallbackQuery):
+    db = None
+    try:
+        db = next(get_db())
+        permission = await admin_require(db=db, message=callback_query)
+        if not permission:
+            return
+
+        try:
+            _, user_id_str, task_id_str = callback_query.data.split("|")
+            user_id = int(user_id_str)
+            task_id = int(task_id_str)
+        except Exception:
+            await callback_query.answer(t("generic_error"))
+            return
+
+        target_user = UserService.get_user(db=db, user_ID=user_id)
+        task = TaskService.get_task_by_id(db=db, id=task_id)
+        if not target_user or not task:
+            await callback_query.answer(t("no_tasks_found"))
+            return
+
+        res = UserService.assign_user_to_task(db=db, user_ID=user_id, task_id=task_id)
+        if not res:
+            await callback_query.answer(t("generic_error"))
+            return
+
+        await callback_query.answer(f"{target_user.username or 'User'} ?? ??? {task.title} ????? ??.")
+    except Exception:
+        logger.exception("Failed to assign user via quick command")
+        try:
+            await callback_query.answer(t("generic_error"))
+        except Exception:
+            logger.exception("Failed to send error message")
+    finally:
+        if db:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db")
+
 # ===== Callback Handler for Short Edit =====
+
 @router.callback_query(F.data.startswith("short_edit|"))
 async def short_edit_confirm(callback_query: CallbackQuery):
     """
@@ -2427,7 +2555,7 @@ async def short_edit_confirm(callback_query: CallbackQuery):
 
         # Handle changing the task's end date
         elif edit_type == "time":
-            end_date = jalali_to_gregorian(edit_value)
+            end_date = parse_flexible_date(edit_value)
             if not end_date:
                 await callback_query.answer(t("deadline_invalid_format"))
                 return
@@ -2435,9 +2563,7 @@ async def short_edit_confirm(callback_query: CallbackQuery):
                 await callback_query.answer(t("deadline_past_date"))
                 return
             result = TaskService.edit_task(db=db, task_id=task_id, end_date=end_date)
-            success_message = f"✅ تاریخ تسک تغییر کرد به : {edit_value}"
-
-        # Handle attaching files to the task
+            success_message = f"??? ????? ????? ??? ?? {edit_value} ????? ???"
         elif edit_type == "attach":
             result = True
             media_key = edit_value

@@ -2,6 +2,7 @@ from aiogram.types import Message, CallbackQuery
 from . import del_message
 from services.user_services import UserService
 from logger import logger
+from utils.texts import t
 
 async def admin_require(db, message: Message) -> bool:
     """Check if the user executing the command is an admin"""
@@ -27,7 +28,7 @@ async def admin_require(db, message: Message) -> bool:
             if not is_admin:
                 # Send "not allowed" message depending on message type
                 response = await (message.message.answer if isinstance(message, CallbackQuery) else message.answer)(
-                    "اجرای این دستور فقط توسط ادمین ممکن است ❌\n"
+                    t("no_permission_cmd")
                 )
                 await del_message(3, response, message)
                 # Optionally: delete this warning after X seconds with del_message()
@@ -39,7 +40,7 @@ async def admin_require(db, message: Message) -> bool:
         if not is_admin:
             # Send "not allowed" message depending on message type
             response = await (message.message.answer if isinstance(message, CallbackQuery) else message.answer)(
-                "اجرای این دستور فقط توسط ادمین ممکن است ❌\n"
+                t("no_permission_cmd")
             )
             await del_message(3, response, message)
             
@@ -51,7 +52,7 @@ async def admin_require(db, message: Message) -> bool:
         # Log unexpected errors
         logger.exception("Unexpected error occurred")
         try:
-            await message.answer("❌خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+            await message.answer(t("generic_error"))
         except Exception:
             # Log failure if even sending the error message fails
             logger.exception("Failed to send error message")  
