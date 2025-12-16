@@ -25,6 +25,13 @@ async def cmd_start_private(message: Message):
 
         if message.from_user.is_bot:
             await message.answer(t("start_reject_bots"))
+            return
+
+        # Users must have a Telegram username configured
+        username = message.from_user.username
+        if not username:
+            await message.answer(t("start_username_required"))
+            return
         
         # Get or create user based on mode
         if config.MODE == "DEV":
@@ -32,7 +39,7 @@ async def cmd_start_private(message: Message):
             user = UserService.get_or_create_user(
                 db=db,
                 telegram_id=str(message.from_user.id),
-                username=message.from_user.username,
+                username=username,
                 is_admin=True,
             )
             if not user:
@@ -43,7 +50,7 @@ async def cmd_start_private(message: Message):
             user = UserService.get_or_create_user(
                 db=db,
                 telegram_id=str(message.from_user.id),
-                username=message.from_user.username,
+                username=username,
                 is_admin=False,
             )
             if not user:
@@ -97,20 +104,26 @@ async def cmd_start_group(message: Message, state: FSMContext):
             await message.answer(t("start_group_admins_only"))
             return
 
+        # Users must have a Telegram username configured
+        username = message.from_user.username
+        if not username:
+            await message.answer(t("start_username_required"))
+            return
+
         # In DEV mode: create or get the user and automatically mark as admin
         # In PROD mode: only existing users with admin rights are allowed
         if config.MODE == "DEV":
             user = UserService.get_or_create_user(
                 db=db,
                 telegram_id=str(message.from_user.id),
-                username=message.from_user.username,
+                username=username,
                 is_admin=True
             )
         else:
             user = UserService.get_user(
                 db=db,
                 user_tID=str(message.from_user.id),
-                username=message.from_user.username,
+                username=username,
             )
             if not user or not user.is_admin:
                 await message.answer(t("start_group_admin_required"))

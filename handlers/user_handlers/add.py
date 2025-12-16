@@ -18,6 +18,7 @@ from utils.texts import t
 
 # ===== Main view: Show and manage users =====
 @router.message(F.text == "مدیریت کاربران")
+@router.message(Command("users_management"))
 async def view_users(
     message: Message = None,
     db=None,
@@ -102,6 +103,9 @@ async def view_users(
         keyboard.inline_keyboard.append([
             InlineKeyboardButton(text=t("user_btn_refresh"), callback_data=refresh_callback),
         ])
+
+        # Add cancel button to close Teledo menu
+        keyboard.inline_keyboard.append([InlineKeyboardButton(text="لغو", callback_data="teledo|cancel")])
 
         # Send or edit message accordingly
         if callback_query is None:

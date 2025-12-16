@@ -24,6 +24,34 @@ from utils.texts import t
 media_cache = {}
 
 
+def _build_teledo_keyboard(is_admin: bool) -> InlineKeyboardMarkup:
+    """
+    Build the Teledo menu keyboard.
+    - Admins see all actions.
+    - Non-admins only see "تسک های من" and "افزودن تسک".
+    """
+    rows = []
+    if is_admin:
+        rows.append([InlineKeyboardButton(text="مدیریت کاربران", callback_data="teledo|users")])
+        rows.append([InlineKeyboardButton(text="مدیریت تسک ها", callback_data="teledo|tasks")])
+
+    # Shared entries
+    rows.append([InlineKeyboardButton(text="افزودن تسک", callback_data="teledo|add_task")])
+
+    if is_admin:
+        rows.extend([
+            [InlineKeyboardButton(text="تخصیص کاربر", callback_data="teledo|assign_user")],
+            [InlineKeyboardButton(text="تغییر عنوان", callback_data="teledo|title")],
+            [InlineKeyboardButton(text="تغییر شرح", callback_data="teledo|desc")],
+            [InlineKeyboardButton(text="تغییر ددلاین", callback_data="teledo|deadline")],
+            [InlineKeyboardButton(text="افزودن پیوست", callback_data="teledo|attach")],
+        ])
+
+    rows.append([InlineKeyboardButton(text="تسک های من", callback_data="teledo|my_tasks")])
+    rows.append([InlineKeyboardButton(text="لغو", callback_data="teledo|cancel")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 async def _send_attachment_notification(callback_obj, task, attachment_id, added_by_admin: bool):
     """Send only the new attachment to relevant users."""
     db = next(get_db())
@@ -319,6 +347,8 @@ async def handle_view_group_tasks(callback_query: CallbackQuery):
 # ===== Handler for manage tasks =====
 @router.callback_query(F.data == "back")
 @router.message(Command("tasks"))
+@router.message(Command("tasks_management"))
+@router.message(F.text == "مدیریت تسک ها")
 async def handle_task_manage(event: Message | CallbackQuery):
     """Main handler for manage tasks"""
     db = None
@@ -332,10 +362,13 @@ async def handle_task_manage(event: Message | CallbackQuery):
         text, keyboard = task_manage_keyboard(db=db)
 
         text="\n".join(text)
+        # Add cancel option to exit menu
+        keyboard.inline_keyboard.append([InlineKeyboardButton(text="لغو", callback_data="teledo|cancel")])
         if isinstance(event, CallbackQuery):
             await event.message.edit_text(text=text, reply_markup=keyboard)
         else:
             await event.answer(text=text, reply_markup=keyboard)
+            await del_message(3, event)
             await event.delete()
              
     except Exception:
@@ -379,7 +412,11 @@ async def handle_view_task(callback_query: CallbackQuery, state: FSMContext = No
         admin = UserService.get_user(db, user_ID=task.admin_id)
         group = TaskService.get_group(db, task.group_id)
         topic = TaskService.get_topic(db=db, id=task.topic_id)
-        current_user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+        current_user = UserService.get_user(
+            db=db,
+            user_tID=str(callback_query.from_user.id),
+            username=callback_query.from_user.username,
+        )
         is_admin = bool(current_user and current_user.is_admin)
         is_assigned = bool(current_user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=current_user.id))
 
@@ -473,7 +510,11 @@ async def handle_choose_status(callback_query: CallbackQuery):
 
         db = next(get_db())
         task = TaskService.get_task_by_id(db=db, id=task_id)
-        user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+        user = UserService.get_user(
+            db=db,
+            user_tID=str(callback_query.from_user.id),
+            username=callback_query.from_user.username,
+        )
         is_admin = bool(user and user.is_admin)
         is_assigned = bool(user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=user.id)) if user else False
 
@@ -530,7 +571,11 @@ async def handle_change_status(callback_query: CallbackQuery):
 
         db = next(get_db())
         task = TaskService.get_task_by_id(db=db, id=task_id)
-        user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+        user = UserService.get_user(
+            db=db,
+            user_tID=str(callback_query.from_user.id),
+            username=callback_query.from_user.username,
+        )
         is_admin = bool(user and user.is_admin)
         is_assigned = bool(user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=user.id)) if user else False
 
@@ -1892,7 +1937,11 @@ async def handle_add_attachment(callback_query: CallbackQuery, state: FSMContext
 
         db = next(get_db())
         task = TaskService.get_task_by_id(db=db, id=task_id)
-        user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+        user = UserService.get_user(
+            db=db,
+            user_tID=str(callback_query.from_user.id),
+            username=callback_query.from_user.username,
+        )
         is_admin = bool(user and user.is_admin)
         is_assigned = bool(user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=user.id)) if user else False
 
@@ -1983,7 +2032,11 @@ async def handle_new_attachment(message: Message, state: FSMContext):
             await del_message(3, msg)
             # Notify admin or assigned users
             task = TaskService.get_task_by_id(db=db, id=task_id)
-            adder_user = UserService.get_user(db=db, user_tID=str(message.from_user.id))
+            adder_user = UserService.get_user(
+                db=db,
+                user_tID=str(message.from_user.id),
+                username=message.from_user.username,
+            )
             added_by_admin = bool(adder_user and adder_user.is_admin)
             await _send_attachment_notification(message, task, attachment_id, added_by_admin)
 
@@ -2015,7 +2068,11 @@ async def handle_get_attachments(callback_query: CallbackQuery):
         db = next(get_db())
 
         task = TaskService.get_task_by_id(db=db, id=task_id)
-        user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+        user = UserService.get_user(
+            db=db,
+            user_tID=str(callback_query.from_user.id),
+            username=callback_query.from_user.username,
+        )
         is_admin = bool(user and user.is_admin)
         is_assigned = bool(user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=user.id)) if user else False
 
@@ -2106,6 +2163,7 @@ async def handle_my_tasks(event: Message | CallbackQuery):
                     callback_data=f"show_task|{task.id}"
                 )
             ])
+        keyboard_buttons.append([InlineKeyboardButton(text="لغو", callback_data="teledo|cancel")])
         inline_keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
         # Send message with tasks
@@ -2148,14 +2206,116 @@ async def handle_my_tasks(event: Message | CallbackQuery):
 
 
 @router.message(F.text == "تسک های من")
+@router.message(Command("my_tasks"))
 async def handle_my_tasks_message(message: Message):
     await handle_my_tasks(event=message)
+    await del_message(3, message)
 
 @router.callback_query(F.data == "back_show")
 async def handle_my_tasks_callback(callback: CallbackQuery):
     await handle_my_tasks(event=callback)
 
 
+@router.message(Command("teledo"))
+async def handle_teledo_menu(message: Message):
+    """Show Teledo menu in groups/supergroups (non-reply)."""
+    try:
+        if message.chat.type not in ("group", "supergroup"):
+            await message.answer(t("only_group_command"))
+            return
+
+        # Determine admin status via chat membership
+        chat_member = await message.bot.get_chat_member(
+            chat_id=message.chat.id,
+            user_id=message.from_user.id,
+        )
+        is_admin = chat_member.status in ["administrator", "creator"]
+
+        if not is_admin:
+            em = await message.answer(t("teledo_admin_only"))
+            await del_message(3, em, message)
+            return
+
+        keyboard = _build_teledo_keyboard(is_admin=is_admin)
+        await message.answer("یک گزینه را انتخاب کنید:", reply_markup=keyboard)
+        await del_message(3, message)
+    except Exception:
+        logger.exception("Failed to show teledo menu")
+        try:
+            await message.answer(t("generic_error"))
+        except Exception:
+            logger.exception("Failed to send teledo menu fallback")
+
+
+@router.callback_query(F.data.startswith("teledo|"))
+async def handle_teledo_callbacks(callback_query: CallbackQuery):
+    """Handle Teledo menu callbacks."""
+    action = callback_query.data.split("|", 1)[1] if "|" in callback_query.data else ""
+    try:
+        # Fetch chat admin status
+        chat_member = await callback_query.bot.get_chat_member(
+            chat_id=callback_query.message.chat.id,
+            user_id=callback_query.from_user.id,
+        )
+        is_admin = chat_member.status in ["administrator", "creator"]
+
+        if not is_admin:
+            await callback_query.answer(t("teledo_admin_only"), show_alert=True)
+            return
+
+        # Cancel: remove menu message
+        if action == "cancel":
+            try:
+                await callback_query.message.delete()
+            except Exception:
+                pass
+            await callback_query.answer()
+            return
+
+        if action == "users":
+            from handlers.user_handlers.add import view_users  # local import to avoid circular
+            await view_users(callback_query=callback_query)
+            return
+
+        if action == "tasks":
+            await handle_task_manage(callback_query)
+            return
+
+        if action == "my_tasks":
+            await handle_my_tasks(event=callback_query)
+            return
+
+        admin_only_actions = {"add_task", "assign_user", "title", "desc", "deadline", "attach", "tasks", "users"}
+        if action in admin_only_actions and not is_admin:
+            await callback_query.answer(t("no_permission_cmd"), show_alert=True)
+            return
+
+        # Instruction prompts for reply-only actions
+        instructions = {
+            "add_task": "برای افزودن تسک، روی پیام عنوان ریپلای کنید و دستور /add را بفرستید.",
+            "assign_user": "برای تخصیص کاربر، روی پیام کاربر ریپلای کنید و دستور /user را بفرستید.",
+            "title": "برای تغییر عنوان، روی پیام عنوان جدید ریپلای کنید و دستور /title را بفرستید.",
+            "desc": "برای تغییر شرح، روی پیام شرح جدید ریپلای کنید و دستور /desc را بفرستید.",
+            "deadline": "برای تغییر ددلاین، روی پیام تاریخ ریپلای کنید و دستور /time را بفرستید.",
+            "attach": "برای افزودن پیوست، روی پیام یا فایل مدنظر ریپلای کنید و دستور /attach را بفرستید.",
+        }
+
+        if action in instructions:
+            prompt_text = instructions[action]
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="لغو", callback_data="teledo|cancel")]]
+            )
+            await callback_query.message.edit_text(prompt_text, reply_markup=keyboard)
+            await callback_query.answer()
+            return
+
+        await callback_query.answer(t("invalid_command"))
+    except Exception:
+        logger.exception("Failed to handle teledo callback")
+        try:
+            await callback_query.answer(t("generic_error"), show_alert=True)
+        except Exception:
+            logger.exception("Failed to send teledo callback fallback")
 # ===== Command Picker (prefills input instead of sending) =====
 @router.message(Command("commands"))
 @router.message(Command("menu"))
@@ -2164,6 +2324,11 @@ async def handle_command_picker(message: Message):
     try:
         # Allow in both group and supergroup. In private, fall back to admin-only set.
         is_group = message.chat.type in ("group", "supergroup")
+
+        if not message.reply_to_message:
+            em = await message.answer(t("commands_reply_required"))
+            await del_message(3, em, message)
+            return
 
         chat_member = None
         is_admin = False
@@ -2176,7 +2341,7 @@ async def handle_command_picker(message: Message):
         else:
             # Private: trust DB check if available
             db = next(get_db())
-            is_admin = bool(UserService.is_admin(db=db, user_tID=str(message.from_user.id)))
+            is_admin = bool(UserService.is_admin(db=db, user_tID=str(message.from_user.id), username=message.from_user.username))
             db.close()
 
         buttons = []
@@ -2194,10 +2359,21 @@ async def handle_command_picker(message: Message):
                 [InlineKeyboardButton(text="📎 /attach", switch_inline_query_current_chat="/attach ")]
             )
 
-        await message.answer(
-            "یک فرمان را انتخاب کنید تا در کادر نوشتار قرار گیرد و خودتان متن را کامل و ارسال کنید.",
+        cmd_help_lines = [
+            "/add : افزودن تسک جدید بر اساس متن پیام ریپلای به عنوان عنوان.",
+            "/user : کاربرِ پیام ریپلای را برای افزودن به یک تسک موجود انتخاب می‌کند.",
+            "/title : متن ریپلای را به عنوان عنوان جدید یک تسک موجود ثبت می‌کند.",
+            "/desc : متن ریپلای را توضیح تسک می‌کند؛ اگر توضیح نداشت اضافه می‌شود و اگر داشت جایگزین می‌شود.",
+            "/time : زمان در پیام ریپلای (با تشخیص فرمت تاریخ) را برای یک تسک تنظیم می‌کند؛ در صورت نامعتبر بودن فرمت صحیح را نمایش می‌دهد.",
+            "/attach : پیام ریپلای (متن یا فایل) را به یک تسک موجود پیوست می‌کند و پیوست‌های قبلی را حذف نمی‌کند.",
+            "تمام این دستورات فقط روی پیام ریپلای کار می‌کنند.",
+        ]
+
+        reply = await message.answer(
+            "\n".join(cmd_help_lines),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
+        await del_message(3, reply, message)
     except Exception:
         logger.exception("Failed to send command picker")
         try:
@@ -2217,8 +2393,22 @@ async def handle_short_edits(message: Message):
     db = None
     try:
         db = next(get_db())
-        current_user = UserService.get_user(db=db, user_tID=str(message.from_user.id))
-        is_admin = UserService.is_admin(db=db, user_tID=message.from_user.id)
+        current_user = UserService.get_user(
+            db=db,
+            user_tID=str(message.from_user.id),
+            username=message.from_user.username,
+        )
+        is_admin = UserService.is_admin(
+            db=db,
+            user_tID=message.from_user.id,
+            username=message.from_user.username,
+        )
+
+        # These commands must be used as a reply to another message
+        if not message.reply_to_message:
+            em = await message.answer(t("commands_reply_required"))
+            await del_message(3, em, message)
+            return
 
         # Restrict non-admins to /attach only
         if message.text.lower().split()[0] != "/attach" and not is_admin:
@@ -2384,24 +2574,22 @@ async def handle_short_users_edits(message: Message):
         if not permission:
             return
 
+        if not message.reply_to_message:
+            em = await message.answer(t("commands_reply_required"))
+            await del_message(3, em, message)
+            return
+
         await message.delete()
 
         # Determine target user either from reply or from the argument
         target_username = None
         target_telegram_id = None
-        if message.reply_to_message and message.reply_to_message.from_user and not message.reply_to_message.from_user.is_bot:
-            target_telegram_id = message.reply_to_message.from_user.id
-            target_username = message.reply_to_message.from_user.username
+        reply_user = message.reply_to_message.from_user if message.reply_to_message else None
+        if reply_user and not reply_user.is_bot:
+            target_telegram_id = reply_user.id
+            target_username = reply_user.username or f"user_{target_telegram_id}"
         else:
-            parts = message.text.split(maxsplit=1)
-            if len(parts) > 1 and parts[1].strip():
-                target_username = parts[1].strip().lstrip("@")
-
-        if not target_username and target_telegram_id:
-            target_username = f"user_{target_telegram_id}"
-
-        if not (target_username or target_telegram_id):
-            em = await message.answer("???? ???? ???? ?????? ??? ?????? ?? ??? ?? /user ??????? ?? ??? ???? ?? ?????? ???? ? /user ?? ???????.")
+            em = await message.answer(t("commands_reply_required"))
             await del_message(3, em, message)
             return
 
@@ -2592,7 +2780,11 @@ async def short_edit_confirm(callback_query: CallbackQuery):
 
             # Send notifications with only new files
             task = TaskService.get_task_by_id(db=db, id=task_id)
-            adder_user = UserService.get_user(db=db, user_tID=str(callback_query.from_user.id))
+            adder_user = UserService.get_user(
+                db=db,
+                user_tID=str(callback_query.from_user.id),
+                username=callback_query.from_user.username,
+            )
             added_by_admin = bool(adder_user and adder_user.is_admin)
             for fid in added_ids:
                 await _send_attachment_notification(callback_query, task, fid, added_by_admin)

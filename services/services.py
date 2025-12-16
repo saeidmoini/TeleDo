@@ -4,7 +4,7 @@ from models import Group, Topic, User, Task, UserTask
 from datetime import datetime
 from logger import logger
 from typing import List, Literal
-from handlers.funcs import exception_decorator
+from utils.decorators import exception_decorator
 
 class TaskService:
     @staticmethod

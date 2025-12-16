@@ -55,3 +55,25 @@ def test_get_all_users_filters(db_session):
     result = list(UserService.get_all_users(db_session, username="bob"))
     assert u2 not in result
     assert u1 in result and u3 in result
+
+
+def test_get_or_create_updates_username_on_change(db_session):
+    existing = User(username="oldname", telegram_id="99", is_admin=False)
+    db_session.add(existing)
+    db_session.commit()
+
+    updated = UserService.get_or_create_user(db_session, username="newname", telegram_id=99, is_admin=False)
+
+    assert updated.id == existing.id
+    assert updated.username == "newname"
+    assert updated.telegram_id == "99"
+
+
+def test_get_user_syncs_username_with_profile(db_session):
+    user = User(username="stale_name", telegram_id="100")
+    db_session.add(user)
+    db_session.commit()
+
+    fetched = UserService.get_user(db_session, user_tID="100", username="fresh_name")
+
+    assert fetched.username == "fresh_name"

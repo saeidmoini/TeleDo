@@ -1,8 +1,15 @@
 import os
+import sys
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+# Ensure project root is on sys.path so `database` and other modules can be imported in tests.
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 # Use an in-memory SQLite DB for all tests to avoid touching real data.
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")

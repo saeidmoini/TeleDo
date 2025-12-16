@@ -94,6 +94,8 @@
   "cmd_admin_tasks_desc": "مدیریت سریع تسک‌ها (مشاهده، ویرایش، حذف) با منو.",
   "cmd_admin_users_desc": "مدیریت کاربران: فهرست، افزودن و حذف با منو.",
   "start_reject_bots": "❌ ربات ها نمیتوانند از این ربات استفاده کنند ❌",
+  "start_username_required": "Please set a Telegram username in your account settings, then send /start again.",
+  "commands_reply_required": "این دستورات فقط زمانی کار می‌کنند که روی یک پیام ریپلای شوند.",
   "start_create_user_error": "❌ خطا در ایجاد کاربر",
   "start_create_account_error": "❌ خطا در ایجاد حساب کاربری. لطفاً دوباره تلاش کنید.",
   "start_welcome_admin": "سلام {first_name}! به ربات مدیریت تسک خوش آمدید.\nشما به عنوان ادمین ثبت شدید.",

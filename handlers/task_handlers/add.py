@@ -19,6 +19,8 @@ CANCEL_TEXT = t("btn_cancel")
 # ===== Handler for create new task in group/supergroup chats =====
 @router.message(Command("add"), chat_type_filter(ChatType.GROUP))
 @router.message(Command("add"), chat_type_filter(ChatType.SUPERGROUP))
+@router.message(F.text == "افزودن تسک", chat_type_filter(ChatType.GROUP))
+@router.message(F.text == "افزودن تسک", chat_type_filter(ChatType.SUPERGROUP))
 async def add_task(message: Message):
     db = None
     try:
@@ -47,7 +49,11 @@ async def add_task(message: Message):
             return
         
         # Check if user exists in DB and is admin
-        user = UserService.get_user(db=db, user_tID=str(message.from_user.id))
+        user = UserService.get_user(
+            db=db,
+            user_tID=str(message.from_user.id),
+            username=message.from_user.username,
+        )
         if not user or not user.is_admin:
             response = await message.answer(
                 t("no_permission_cmd")
@@ -62,40 +68,23 @@ async def add_task(message: Message):
             if topic:
                 topic = topic.id
 
-        # User replied to another message
-        if message.reply_to_message and message.reply_to_message.text and not (message.reply_to_message.from_user and message.reply_to_message.from_user.is_bot):
-            original_text = message.reply_to_message.text
-            if original_text and type(original_text) == str:
-                original_text = original_text.strip()
-                add_res = TaskService.create_task(db=db, title=original_text, admin_id=user.id, group_id=group.id, topic_id=topic)
-                if not add_res:
-                    response = await message.answer(t("task_create_failed"))
-                else:
-                    response = await message.answer(t("task_create_success"))
-            else:
-                response = await message.answer(
-                    t("task_invalid_reply_text")
-                )
-        # /add with task name directly in the same message
-        elif len(message.text.strip()) > len("/add"):
-                try:
-                    task_name = message.text.split("/add", maxsplit=1)[1].strip()
-                except Exception:
-                    logger.exception("Failed to processing task_name")
-                    response = await message.answer(t("task_process_name_error"))
-                add_res = TaskService.create_task(db=db, title=task_name, admin_id=user.id, group_id=group.id, topic_id=topic)
-                if not add_res:
-                    response = await message.answer(t("task_create_failed"))    
-                else:
-                    response = await message.answer(t("task_create_success"))
-        # Invalid usage of /add command
-        else:
-            response = await message.answer(
-                t("task_add_invalid_usage")
-            )
-            # Delete response and message after 3 seconds
+        # Require reply to a message for task creation
+        if not (message.reply_to_message and message.reply_to_message.text and not (message.reply_to_message.from_user and message.reply_to_message.from_user.is_bot)):
+            response = await message.answer(t("commands_reply_required"))
             await del_message(3, response, message)
             return
+
+        original_text = message.reply_to_message.text.strip()
+        if not original_text:
+            response = await message.answer(t("task_invalid_reply_text"))
+            await del_message(3, response, message)
+            return
+
+        add_res = TaskService.create_task(db=db, title=original_text, admin_id=user.id, group_id=group.id, topic_id=topic)
+        if not add_res:
+            response = await message.answer(t("task_create_failed"))
+        else:
+            response = await message.answer(t("task_create_success"))
 
         # Delete final response and message after 3 seconds
         await del_message(3, response, message)
@@ -122,12 +111,17 @@ class AddTaskStates(StatesGroup):
     confirming_task = State()
 
 @router.message(Command("add"), chat_type_filter(ChatType.PRIVATE))
+@router.message(F.text == "افزودن تسک", chat_type_filter(ChatType.PRIVATE))
 async def add_task_in_private(message: Message, state: FSMContext):
     try:
         db = next(get_db())  # Open database session
 
         # Check if user exists in DB and is admin
-        user = UserService.get_user(db=db, user_tID=str(message.from_user.id))
+        user = UserService.get_user(
+            db=db,
+            user_tID=str(message.from_user.id),
+            username=message.from_user.username,
+        )
         if not user or not user.is_admin:
             response = await message.answer(t("no_permission_cmd"))
 
@@ -236,10 +230,12 @@ async def cancel_add_task(message: Message, state: FSMContext):
         keyboard = get_main_menu_keyboard(chat_type=data['chat_type'], is_admin=data.get("user_admin", False))
 
         # Send cancellation message
-        await message.answer(
+        cancel_msg = await message.answer(
             t("task_add_cancelled"),
             reply_markup=keyboard
         )
+        # Schedule deletion of the cancel notice as well
+        await del_message(3, cancel_msg)
         
         # Clean up previous messages
         try:
