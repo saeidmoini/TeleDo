@@ -4,7 +4,7 @@ from models import Group, Topic, User, Task, UserTask, TaskAttachment
 from datetime import datetime
 from logger import logger
 from typing import List, Literal
-from handlers.funcs import exception_decorator
+from utils.decorators import exception_decorator
 from utils.date_utils import jalali_to_gregorian
 import uuid
 
@@ -353,7 +353,6 @@ class TaskAttachmentService:
             db.add(record)
         db.commit()
         return True
-
 
 
 

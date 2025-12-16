@@ -88,27 +88,37 @@ async def set_commands(bot: Bot):
     """
     user_commands = [
         BotCommand(
-            command="/tasks",
+            command="/my_tasks",
             description=t("cmd_user_tasks_desc"),
         ),
     ]
 
     admin_commands = [
         BotCommand(
-            command="/tasks",
+            command="/teledo",
+            description="منوی دستورات",
+        ),
+        BotCommand(
+            command="/tasks_management",
             description=t("cmd_admin_tasks_desc"),
         ),
         BotCommand(
-            command="/users",
+            command="/users_management",
             description=t("cmd_admin_users_desc"),
+        ),
+        BotCommand(
+            command="/my_tasks",
+            description=t("cmd_user_tasks_desc"),
         ),
     ]
 
     group_user_commands = [
+        BotCommand(command="/teledo", description="منوی دستورات"),
         BotCommand(command="/attach", description="افزودن فایل به تسک"),
     ]
 
     group_admin_commands = [
+        BotCommand(command="/teledo", description="منوی دستورات"),
         BotCommand(command="/add", description="ایجاد تسک جدید"),
         BotCommand(command="/user", description="افزودن کاربر به تسک"),
         BotCommand(command="/title", description="تغییر عنوان تسک"),

@@ -2,7 +2,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from models import User, UserTask
-from handlers.funcs import exception_decorator
+from utils.decorators import exception_decorator
 from typing import Literal, Generator
 
 class UserService:        
@@ -22,14 +22,27 @@ class UserService:
 
         if user_ID:
             return db.query(User).filter(User.id == user_ID).first()
-        elif username is not None and user_tID is not None:
-            return db.query(User).filter(User.telegram_id == user_tID, User.username == username).first()
-        elif username is not None:
-            return db.query(User).filter(User.username == username).first()
-        elif user_tID is not None:
-            return db.query(User).filter(User.telegram_id == user_tID).first()
-        else:
-            return None
+
+        user = None
+        if user_tID is not None:
+            user = db.query(User).filter(User.telegram_id == user_tID).first()
+            if user:
+                # Keep the stored username in sync with Telegram profile
+                if username and user.username != username:
+                    user.username = username
+                    db.commit()
+                    db.refresh(user)
+                return user
+
+        if username is not None:
+            user = db.query(User).filter(User.username == username).first()
+            if user and user_tID is not None and user.telegram_id != user_tID:
+                user.telegram_id = user_tID
+                db.commit()
+                db.refresh(user)
+            return user
+
+        return None
     
     @staticmethod
     @exception_decorator
@@ -37,28 +50,30 @@ class UserService:
         """
         Retrieve a user by username or Telegram ID.
         If the user does not exist, create a new one.
-        Updates Telegram ID if user already exists. Does not demote existing admins.
+        Updates Telegram ID/username if user already exists. Does not demote existing admins.
         """
         if not username:
             return None
         user = None
+        telegram_id = str(telegram_id) if telegram_id is not None else None
 
         # Prefer lookup by telegram_id if provided
         if telegram_id:
-            user = db.query(User).filter(User.telegram_id == str(telegram_id)).first()
+            user = db.query(User).filter(User.telegram_id == telegram_id).first()
         # Fallback to username lookup
         if user is None:
             user = db.query(User).filter(User.username == username).first()
 
         if not user:
-            user = User(username=username, is_admin=is_admin)
+            user = User(username=username, is_admin=is_admin, telegram_id=telegram_id)
             db.add(user)
-
-        if telegram_id:
-            user.telegram_id = str(telegram_id)
-
-        # Only promote, never demote existing admin status here
-        user.is_admin = user.is_admin or is_admin
+        else:
+            if telegram_id:
+                user.telegram_id = telegram_id
+            if username and user.username != username:
+                user.username = username
+            # Only promote, never demote existing admin status here
+            user.is_admin = user.is_admin or is_admin
         
         db.commit()
         db.refresh(user)

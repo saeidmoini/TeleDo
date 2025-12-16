@@ -36,7 +36,7 @@ async def admin_require(db, message: Message) -> bool:
             return True
 
         # Case 2: if not in a group (private chat), check admin status in database
-        is_admin = UserService.is_admin(db=db, user_tID=str(user.id))
+        is_admin = UserService.is_admin(db=db, user_tID=str(user.id), username=user.username)
         if not is_admin:
             # Send "not allowed" message depending on message type
             response = await (message.message.answer if isinstance(message, CallbackQuery) else message.answer)(

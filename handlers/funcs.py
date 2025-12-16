@@ -4,46 +4,8 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram import F
 from logger import logger
 import asyncio
-from functools import wraps
 from aiogram.types import Message, CallbackQuery
-
-def exception_decorator(func):
-    """
-    Decorator for handling exceptions in both synchronous and asynchronous functions.
-    - If the wrapped function raises an exception, it will be logged instead of crashing the bot.
-    - Returns None if an exception occurs, so the bot can continue running smoothly.
-
-    This is especially useful for service/database functions to avoid repeating try/except everywhere.
-    """
-    @wraps(func)
-    async def async_wrapper(*args, **kwargs):
-        """
-        Wrapper for async functions.
-        Tries to execute the function and logs any exception if it occurs.
-        """
-        try:
-            return await func(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error in {func.__name__}: {e}")
-            return None
-
-    @wraps(func)
-    def sync_wrapper(*args, **kwargs):
-        """
-        Wrapper for sync functions.
-        Tries to execute the function and logs any exception if it occurs.
-        """
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error in {func.__name__}: {e}")
-            return None
-
-    # Decide which wrapper to return based on whether the function is async or sync
-    if asyncio.iscoroutinefunction(func):
-        return async_wrapper
-    else:
-        return sync_wrapper
+from utils.decorators import exception_decorator
 
 
 
@@ -93,12 +55,12 @@ def get_main_menu_keyboard(chat_type: ChatType, is_admin: bool = False) -> Reply
             ])
             keyboards.append(
             [
-                KeyboardButton(text="/tasks"), 
+                KeyboardButton(text="مدیریت تسک ها"), 
                 
             ])
             keyboards.append(
             [
-                KeyboardButton(text="/add"),
+                KeyboardButton(text="افزودن تسک"),
                 KeyboardButton(text="مدیریت کاربران"),
                 
             ])
@@ -112,8 +74,8 @@ def get_main_menu_keyboard(chat_type: ChatType, is_admin: bool = False) -> Reply
 
     else:
         if is_admin:
-            keyboards.append([KeyboardButton(text="/tasks")])
-            keyboards.append([KeyboardButton(text="/add"), KeyboardButton(text="مدیریت کاربران")])
+            keyboards.append([KeyboardButton(text="مدیریت تسک ها")])
+            keyboards.append([KeyboardButton(text="افزودن تسک"), KeyboardButton(text="مدیریت کاربران")])
         else:
             keyboards.append([KeyboardButton(text="تسک های من")])
 
