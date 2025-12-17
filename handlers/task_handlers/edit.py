@@ -22,6 +22,28 @@ from utils.date_utils import gregorian_to_jalali, jalali_to_gregorian, is_future
 from utils.texts import t
 
 media_cache = {}
+INLINE_COMMAND_ACTIONS = {
+    "add_task": ("add", "افزودن تسک"),
+    "assign_user": ("user", "تخصیص کاربر"),
+    "title": ("title", "تغییر عنوان"),
+    "desc": ("desc", "تغییر شرح"),
+    "deadline": ("time", "تغییر ددلاین"),
+    "attach": ("attach", "افزودن پیوست"),
+}
+
+
+def _inline_cmd_button(action_key: str) -> InlineKeyboardButton:
+    """Build an inline button that pre-fills the related slash command in the chat input."""
+    command, label = INLINE_COMMAND_ACTIONS[action_key]
+    return InlineKeyboardButton(text=label, switch_inline_query_current_chat=f"/{command} ")
+
+
+async def _is_user_in_chat(bot, chat_id: int, telegram_user_id: int) -> bool:
+    try:
+        member = await bot.get_chat_member(chat_id=chat_id, user_id=telegram_user_id)
+        return member is not None
+    except Exception:
+        return False
 
 
 def _build_teledo_keyboard(is_admin: bool) -> InlineKeyboardMarkup:
@@ -36,15 +58,15 @@ def _build_teledo_keyboard(is_admin: bool) -> InlineKeyboardMarkup:
         rows.append([InlineKeyboardButton(text="مدیریت تسک ها", callback_data="teledo|tasks")])
 
     # Shared entries
-    rows.append([InlineKeyboardButton(text="افزودن تسک", callback_data="teledo|add_task")])
+    rows.append([_inline_cmd_button("add_task")])
 
     if is_admin:
         rows.extend([
-            [InlineKeyboardButton(text="تخصیص کاربر", callback_data="teledo|assign_user")],
-            [InlineKeyboardButton(text="تغییر عنوان", callback_data="teledo|title")],
-            [InlineKeyboardButton(text="تغییر شرح", callback_data="teledo|desc")],
-            [InlineKeyboardButton(text="تغییر ددلاین", callback_data="teledo|deadline")],
-            [InlineKeyboardButton(text="افزودن پیوست", callback_data="teledo|attach")],
+            [_inline_cmd_button("assign_user")],
+            [_inline_cmd_button("title")],
+            [_inline_cmd_button("desc")],
+            [_inline_cmd_button("deadline")],
+            [_inline_cmd_button("attach")],
         ])
 
     rows.append([InlineKeyboardButton(text="تسک های من", callback_data="teledo|my_tasks")])
@@ -73,7 +95,11 @@ async def _send_attachment_notification(callback_obj, task, attachment_id, added
         for user in recipients:
             try:
                 text_msg = t("notify_attachment_to_user", title=task.title) if added_by_admin else t("notify_attachment_to_admin", title=task.title)
-                if attachment_id.startswith("AgAC"):
+                if attachment_id.startswith("text:"):
+                    content = attachment_id.removeprefix("text:").strip()
+                    body = f"{text_msg}\n\n{content}" if content else text_msg
+                    await callback_obj.bot.send_message(chat_id=user.telegram_id, text=body)
+                elif attachment_id.startswith("AgAC"):
                     await callback_obj.bot.send_photo(chat_id=user.telegram_id, photo=attachment_id, caption=text_msg)
                 else:
                     await callback_obj.bot.send_document(chat_id=user.telegram_id, document=attachment_id, caption=text_msg)
@@ -2095,7 +2121,13 @@ async def handle_get_attachments(callback_query: CallbackQuery):
             file_id = attachment
 
             # Simple detection based on file_id prefix (Telegram file_id conventions)
-            if file_id.startswith("AgAC"):  # likely photo/video (depends on your storage)
+            if file_id.startswith("text:"):
+                content = file_id.removeprefix("text:").strip() or "پیوست متنی"
+                await callback_query.message.bot.send_message(
+                    chat_id=callback_query.message.chat.id,
+                    text=content
+                )
+            elif file_id.startswith("AgAC"):  # likely photo/video (depends on your storage)
                 await callback_query.message.bot.send_photo(
                     chat_id=callback_query.message.chat.id,
                     photo=file_id
@@ -2290,22 +2322,16 @@ async def handle_teledo_callbacks(callback_query: CallbackQuery):
             await callback_query.answer(t("no_permission_cmd"), show_alert=True)
             return
 
-        # Instruction prompts for reply-only actions
-        instructions = {
-            "add_task": "برای افزودن تسک، روی پیام عنوان ریپلای کنید و دستور /add را بفرستید.",
-            "assign_user": "برای تخصیص کاربر، روی پیام کاربر ریپلای کنید و دستور /user را بفرستید.",
-            "title": "برای تغییر عنوان، روی پیام عنوان جدید ریپلای کنید و دستور /title را بفرستید.",
-            "desc": "برای تغییر شرح، روی پیام شرح جدید ریپلای کنید و دستور /desc را بفرستید.",
-            "deadline": "برای تغییر ددلاین، روی پیام تاریخ ریپلای کنید و دستور /time را بفرستید.",
-            "attach": "برای افزودن پیوست، روی پیام یا فایل مدنظر ریپلای کنید و دستور /attach را بفرستید.",
-        }
-
-        if action in instructions:
-            prompt_text = instructions[action]
+        if action in INLINE_COMMAND_ACTIONS:
+            command, label = INLINE_COMMAND_ACTIONS[action]
             keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="لغو", callback_data="teledo|cancel")]]
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=f"/{command}", switch_inline_query_current_chat=f"/{command} ")],
+                    [InlineKeyboardButton(text=t("btn_cancel"), callback_data="teledo|cancel")],
+                ]
             )
-            await callback_query.message.edit_text(prompt_text, reply_markup=keyboard)
+            helper_text = f"{label}\nدستور در نوار نوشتار قرار گرفت، متن یا فایل را بعد از آن اضافه و ارسال کنید."
+            await callback_query.message.edit_text(helper_text, reply_markup=keyboard)
             await callback_query.answer()
             return
 
@@ -2390,6 +2416,9 @@ async def handle_command_picker(message: Message):
 @router.message(Command("attach"))
 @router.message(Command("time"))
 async def handle_short_edits(message: Message):
+    await _handle_short_edits(message, allow_without_reply=False)
+
+async def _handle_short_edits(message: Message, allow_without_reply: bool = False):
     db = None
     try:
         db = next(get_db())
@@ -2404,8 +2433,8 @@ async def handle_short_edits(message: Message):
             username=message.from_user.username,
         )
 
-        # These commands must be used as a reply to another message
-        if not message.reply_to_message:
+        # These commands must be used as a reply to another message unless explicitly allowed
+        if not allow_without_reply and not message.reply_to_message:
             em = await message.answer(t("commands_reply_required"))
             await del_message(3, em, message)
             return
@@ -2463,33 +2492,43 @@ async def handle_short_edits(message: Message):
             callback_text = f"short_edit|time|{value_text}"
 
         elif command_used in ("attach", "atach"):
-            # Ensure the command is a reply to a message containing media
-            if not message.reply_to_message:
-                em = await message.answer("???? ????? ???? ????? ???? ??? ???? ???? ???? ?????? ???? ? ??? /attach ?? ???????.")
+            file_ids = []
+            seen_ids = set()
+
+            def collect_media(msg):
+                if not msg:
+                    return
+                possible_ids = []
+                if getattr(msg, "photo", None):
+                    possible_ids.append(msg.photo[-1].file_id)
+                if getattr(msg, "video", None):
+                    possible_ids.append(msg.video.file_id)
+                if getattr(msg, "audio", None):
+                    possible_ids.append(msg.audio.file_id)
+                if getattr(msg, "voice", None):
+                    possible_ids.append(msg.voice.file_id)
+                if getattr(msg, "document", None):
+                    possible_ids.append(msg.document.file_id)
+                for fid in possible_ids:
+                    if fid and fid not in seen_ids:
+                        seen_ids.add(fid)
+                        file_ids.append(fid)
+
+            collect_media(message.reply_to_message)
+            collect_media(message)
+
+            if file_ids:
+                media_key = str(uuid.uuid4())
+                media_cache[media_key] = file_ids
+                callback_text = f"short_edit|attach|{media_key}"
+            elif value_text:
+                media_key = str(uuid.uuid4())
+                media_cache[media_key] = [f"text:{value_text}"]
+                callback_text = f"short_edit|attach|{media_key}"
+            else:
+                em = await message.answer("لطفاً یک متن یا فایل را بعد از /attach ارسال کنید.")
                 await del_message(3, em, message)
                 return
-
-            reply_msg = message.reply_to_message
-            file_ids = []
-
-            # Collect file_ids from all possible media types in the replied message
-            if reply_msg.photo:
-                file_ids.append(reply_msg.photo[-1].file_id)
-            if reply_msg.video:
-                file_ids.append(reply_msg.video.file_id)
-            if reply_msg.audio:
-                file_ids.append(reply_msg.audio.file_id)
-            if reply_msg.voice:
-                file_ids.append(reply_msg.voice.file_id)
-            if reply_msg.document:
-                file_ids.append(reply_msg.document.file_id)
-
-            # Generate a unique key for storing these files in memory
-            media_key = str(uuid.uuid4()) 
-            media_cache[media_key] = file_ids
-
-            # Set callback text for the attach operation
-            callback_text = f"short_edit|attach|{media_key}"
 
         # If no command matched or we didn't get a value, notify the user
         if not callback_text:
@@ -2508,6 +2547,7 @@ async def handle_short_edits(message: Message):
                     await del_message(3, message, em)
                     return
                 tasks = TaskService.get_all_tasks(db=db, topic_id=topic.id)
+                group = TaskService.get_group(db=db, id=topic.group_id) if topic and topic.group_id else None
             else:
                 group = TaskService.get_group(db=db, tID=str(message.chat.id))
                 if not group:
@@ -2539,6 +2579,7 @@ async def handle_short_edits(message: Message):
             keyboard.append([
                 InlineKeyboardButton(text=task_item.title, callback_data=f"{callback_text}|{task_item.id}")
             ])
+        keyboard.append([InlineKeyboardButton(text=t("btn_cancel"), callback_data="teledo|cancel")])
 
         await message.answer(
             t("select_task_prompt"),
@@ -2564,6 +2605,10 @@ async def handle_short_edits(message: Message):
 # ===== Short Edit Commands Handler (User commands) =====
 @router.message(Command("user"))
 async def handle_short_users_edits(message: Message):
+    await _handle_short_users_edits(message, allow_fallback_list=True)
+
+
+async def _handle_short_users_edits(message: Message, allow_fallback_list: bool = False):
     """A handler to add a user to a task"""
     db = None
     try:
@@ -2572,36 +2617,6 @@ async def handle_short_users_edits(message: Message):
         # Check admin permission before proceeding
         permission = await admin_require(db=db, message=message)
         if not permission:
-            return
-
-        if not message.reply_to_message:
-            em = await message.answer(t("commands_reply_required"))
-            await del_message(3, em, message)
-            return
-
-        await message.delete()
-
-        # Determine target user either from reply or from the argument
-        target_username = None
-        target_telegram_id = None
-        reply_user = message.reply_to_message.from_user if message.reply_to_message else None
-        if reply_user and not reply_user.is_bot:
-            target_telegram_id = reply_user.id
-            target_username = reply_user.username or f"user_{target_telegram_id}"
-        else:
-            em = await message.answer(t("commands_reply_required"))
-            await del_message(3, em, message)
-            return
-
-        target_user = UserService.get_or_create_user(
-            db=db,
-            username=target_username,
-            telegram_id=target_telegram_id or None,
-            is_admin=False,
-        )
-        if not target_user:
-            em = await message.answer("????? ???? ??? ?? ????? ???? ???? ?????.")
-            await del_message(3, em, message)
             return
 
         # Fetch tasks depending on chat type and topic
@@ -2625,23 +2640,82 @@ async def handle_short_users_edits(message: Message):
             await del_message(3, em)
             return
 
+        # Determine target user either from reply or from the argument
+        parts = (message.text or "").split(maxsplit=1)
+        arg_username = parts[1].strip() if len(parts) > 1 and parts[1].strip() else None
+        target_user = None
+        reply_user = message.reply_to_message.from_user if message.reply_to_message else None
+
+        group_users = [u for u in UserService.get_all_users(db=db) if u.telegram_id] if message.chat.type in ("group", "supergroup") else []
+
+        if arg_username:
+            cleaned_username = arg_username.lstrip("@")
+            if not cleaned_username:
+                em = await message.answer(t("invalid_command"))
+                await del_message(3, em, message)
+                return
+            candidate = next((u for u in group_users if u.username and u.username.lower() == cleaned_username.lower()), None)
+            if candidate and candidate.telegram_id and await _is_user_in_chat(message.bot, message.chat.id, int(candidate.telegram_id)):
+                target_user = candidate
+        elif reply_user and not reply_user.is_bot:
+            target_user = UserService.get_or_create_user(
+                db=db,
+                username=reply_user.username or f"user_{reply_user.id}",
+                telegram_id=reply_user.id,
+                is_admin=False,
+            )
+            if target_user and target_user.telegram_id:
+                in_chat = await _is_user_in_chat(message.bot, message.chat.id, int(target_user.telegram_id))
+                if not in_chat:
+                    target_user = None
+
+        await message.delete()
+
         # If no tasks found, notify user
         if not tasks:
             em = await message.answer(t("no_tasks_found"))
             await del_message(3, em, message)
             return
 
-        # Prepare inline keyboard for selecting task
-        keyboard = []
-        for tsk in tasks:
-            keyboard.append([
-                InlineKeyboardButton(text=tsk.title, callback_data=f"assign_user_direct|{target_user.id}|{tsk.id}")
+        # If a valid target_user (existing in group or created via reply) is set, go straight to task selection for that user.
+        # Otherwise, list available users in group/topic to pick from.
+        if target_user:
+            keyboard = []
+            for tsk in tasks:
+                keyboard.append([
+                    InlineKeyboardButton(text=tsk.title, callback_data=f"assign_user_direct|{target_user.id}|{tsk.id}")
+                ])
+            keyboard.append([InlineKeyboardButton(text=t("btn_cancel"), callback_data="teledo|cancel")])
+
+            await message.answer(
+                t("select_task_prompt"),
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+            )
+            return
+
+        if not allow_fallback_list:
+            em = await message.answer(t("user_not_found"))
+            await del_message(3, em, message)
+            return
+
+        if not group_users:
+            em = await message.answer(t("user_none_found"))
+            await del_message(3, em, message)
+            return
+
+        keyboard_users = []
+        for u in group_users:
+            label = u.username or f"user_{u.id}"
+            keyboard_users.append([
+                InlineKeyboardButton(text=label, callback_data=f"assign_user_pick|{u.id}|{group.id}|{message.message_thread_id if message.is_topic_message else 'NONE'}")
             ])
+        keyboard_users.append([InlineKeyboardButton(text=t("btn_cancel"), callback_data="teledo|cancel")])
 
         await message.answer(
-            t("select_task_prompt"),
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+            t("user_manage_title", user_count=len(group_users)),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_users)
         )
+
 
     except Exception:
         # Log unexpected errors
@@ -2649,15 +2723,47 @@ async def handle_short_users_edits(message: Message):
         try:
             await message.answer(t("generic_error"))
         except Exception:
-            logger.exception("Failed to send error message")   
+            logger.exception("Failed to send error message")          
 
-    finally:
-        # Always close the database connection
-        if db is not None:
-            try:
-                db.close()
-            except Exception:
-                logger.exception("Failed to close db")
+
+# ===== Mention-prefixed commands (/add, /user, /title, /desc, /time, /attach) =====
+@router.message(F.text.startswith("@"))
+async def handle_mention_prefixed_commands(message: Message):
+    """
+    Support commands sent as "@bot /cmd ..." by stripping the mention and reusing existing handlers.
+    """
+    try:
+        text = (message.text or "").strip()
+        bot_username = config.BOT_USERNAME.lstrip("@")
+        if not text.lower().startswith(f"@{bot_username.lower()}"):
+            return
+
+        parts = text.split(maxsplit=1)
+        if len(parts) < 2:
+            return
+
+        rest = parts[1].strip()
+        if not rest.startswith("/"):
+            return
+
+        # Clone message with normalized text (pydantic model is frozen)
+        normalized_message: Message = message.model_copy(update={"text": rest})
+        cmd_token = rest.split()[0].lower().lstrip("/")
+        command_used = cmd_token.split("@")[0]
+
+        if command_used == "add":
+            from .add import add_task
+            await add_task(normalized_message)
+        elif command_used == "user":
+            await handle_short_users_edits(normalized_message)
+        elif command_used in ("title", "name", "desc", "des", "time", "attach", "atach"):
+            await _handle_short_edits(normalized_message, allow_without_reply=True)
+    except Exception:
+        logger.exception("Failed to process mention-prefixed command")
+        try:
+            await message.answer(t("generic_error"))
+        except Exception:
+            logger.exception("Failed to send fallback for mention-prefixed command")
 
 
 # ===== Callback Handler for Assigning User Directly =====
@@ -2689,13 +2795,93 @@ async def handle_assign_user_direct(callback_query: CallbackQuery):
             await callback_query.answer(t("generic_error"))
             return
 
-        await callback_query.answer(f"{target_user.username or 'User'} ?? ??? {task.title} ????? ??.")
+        confirm_text = f"{target_user.username or 'User'} به تسک «{task.title}» اضافه شد."
+        try:
+            await callback_query.message.edit_text(
+                confirm_text,
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text=t("btn_view_assigned"), callback_data=f"view_task_users|{task.id}")],
+                        [InlineKeyboardButton(text=t("btn_back"), callback_data="teledo|cancel")],
+                    ]
+                ),
+            )
+        except Exception:
+            # If edit fails (e.g., message not modifiable), fall back to a reply
+            await callback_query.message.answer(confirm_text)
+
+        await callback_query.answer(confirm_text, show_alert=False)
     except Exception:
         logger.exception("Failed to assign user via quick command")
         try:
             await callback_query.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send error message")
+    finally:
+        if db:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db")
+
+
+@router.callback_query(F.data.startswith("assign_user_pick|"))
+async def handle_assign_user_pick(callback_query: CallbackQuery):
+    """
+    When a username argument wasn't resolved, we list users; picking one leads to task selection.
+    Callback data: assign_user_pick|<user_id>|<group_id>|<topic_thread_id or 'NONE'>
+    """
+    db = None
+    try:
+        db = next(get_db())
+        permission = await admin_require(db=db, message=callback_query)
+        if not permission:
+            return
+
+        try:
+            _, user_id_str, group_id_str, topic_thread = callback_query.data.split("|")
+            user_id = int(user_id_str)
+            group_id = int(group_id_str)
+            topic_thread_id = None if topic_thread == "NONE" else topic_thread
+        except Exception:
+            await callback_query.answer(t("generic_error"))
+            return
+
+        target_user = UserService.get_user(db=db, user_ID=user_id)
+        if not target_user:
+            await callback_query.answer(t("user_not_found"))
+            return
+
+        # Fetch tasks depending on group/topic
+        if topic_thread_id:
+            topic = TaskService.get_topic(db=db, tID=str(topic_thread_id))
+            tasks = TaskService.get_all_tasks(db=db, topic_id=topic.id) if topic else None
+        else:
+            group = TaskService.get_group(db=db, id=group_id)
+            tasks = TaskService.get_all_tasks(db=db, group_id=group.id, topic_id=False) if group else None
+
+        if not tasks:
+            await callback_query.answer(t("no_tasks_found"), show_alert=True)
+            return
+
+        keyboard = []
+        for tsk in tasks:
+            keyboard.append([
+                InlineKeyboardButton(text=tsk.title, callback_data=f"assign_user_direct|{target_user.id}|{tsk.id}")
+            ])
+        keyboard.append([InlineKeyboardButton(text=t("btn_cancel"), callback_data="teledo|cancel")])
+
+        await callback_query.message.edit_text(
+            t("select_task_prompt"),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+        )
+        await callback_query.answer()
+    except Exception:
+        logger.exception("Failed to handle assign_user_pick")
+        try:
+            await callback_query.answer(t("generic_error"), show_alert=True)
+        except Exception:
+            logger.exception("Failed to send error message in assign_user_pick")
     finally:
         if db:
             try:
@@ -2767,15 +2953,15 @@ async def short_edit_confirm(callback_query: CallbackQuery):
                         added_count += 1
                         added_ids.append(file_id)
                 except Exception:
-                    logger.exception(f"Failed to attach file {file_id} to task {task_id}")
+                    logger.exception(f"Failed to attach item {file_id} to task {task_id}")
 
             # Notify user if no files were added
             if added_count == 0:
-                await callback_query.answer("❌ هیچ فایلی اضافه نشد")
+                await callback_query.answer("❌ هیچ پیوستی اضافه نشد")
                 return
 
             # Inform user about successful attachments and remove cache
-            success_message = f"✅ تعداد {added_count} فایل به تسک اضافه شد"
+            success_message = f"✅ تعداد {added_count} پیوست به تسک اضافه شد"
             file_ids = media_cache.__delitem__(media_key)
 
             # Send notifications with only new files
@@ -2798,7 +2984,7 @@ async def short_edit_confirm(callback_query: CallbackQuery):
 
             # Update the message to show confirmation and options
             await callback_query.message.edit_text(success_message, reply_markup=view_keyboard)
-            await callback_query.answer("✅ فایل‌ها با موفقیت اضافه شدند")
+            await callback_query.answer("✅ پیوست‌ها با موفقیت اضافه شدند")
 
         # Handle invalid edit types
         else:

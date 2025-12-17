@@ -68,15 +68,19 @@ async def add_task(message: Message):
             if topic:
                 topic = topic.id
 
-        # Require reply to a message for task creation
-        if not (message.reply_to_message and message.reply_to_message.text and not (message.reply_to_message.from_user and message.reply_to_message.from_user.is_bot)):
-            response = await message.answer(t("commands_reply_required"))
-            await del_message(3, response, message)
-            return
+        # Accept title from reply message or inline argument
+        original_text = None
+        if message.reply_to_message and message.reply_to_message.text and not (message.reply_to_message.from_user and message.reply_to_message.from_user.is_bot):
+            original_text = message.reply_to_message.text.strip()
+        else:
+            parts = (message.text or "").split(maxsplit=1)
+            if len(parts) > 1 and parts[1].strip():
+                original_text = parts[1].strip()
+            elif message.caption and message.caption.strip():
+                original_text = message.caption.strip()
 
-        original_text = message.reply_to_message.text.strip()
         if not original_text:
-            response = await message.answer(t("task_invalid_reply_text"))
+            response = await message.answer(t("task_add_invalid_usage"))
             await del_message(3, response, message)
             return
 
@@ -129,26 +133,25 @@ async def add_task_in_private(message: Message, state: FSMContext):
             await del_message(3, response, message)
             return
 
-        # User replied to another message
+        # Title from reply or inline argument
+        original_text = None
         if message.reply_to_message and message.reply_to_message.text and not (message.reply_to_message.from_user and message.reply_to_message.from_user.is_bot):
-            original_text = message.reply_to_message.text
-            if original_text and type(original_text) == str:
-                original_text = original_text.strip()
-                add_res = TaskService.create_task(db=db, title=original_text, admin_id=user.id)
-                if not add_res:
-                    response = await message.answer(t("task_create_failed"))
-                else:
-                    response = await message.answer(t("task_create_success"))
-                # Delete response and message after 3 seconds
-                await del_message(3, response, message)
-                return
+            original_text = message.reply_to_message.text.strip()
+        else:
+            parts = (message.text or "").split(maxsplit=1)
+            if len(parts) > 1 and parts[1].strip():
+                original_text = parts[1].strip()
+
+        if original_text:
+            add_res = TaskService.create_task(db=db, title=original_text, admin_id=user.id)
+            if not add_res:
+                response = await message.answer(t("task_create_failed"))
             else:
-                response = await message.answer(
-                    t("task_invalid_reply_text")
-                )
-                # Delete response and message after 3 seconds
-                await del_message(3, response, message)
-                return
+                response = await message.answer(t("task_create_success"))
+            # Delete response and message after 3 seconds
+            await del_message(3, response, message)
+            return
+
         # Use conversation with user to get task name
         else:
             # Create cancel keyboard
