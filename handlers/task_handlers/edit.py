@@ -375,6 +375,8 @@ async def handle_view_group_tasks(callback_query: CallbackQuery):
 @router.message(Command("tasks"))
 @router.message(Command("tasks_management"))
 @router.message(F.text == "مدیریت تسک ها")
+@router.message(Command("tasks_management"))
+@router.message(F.text == "مدیریت تسک ها")
 async def handle_task_manage(event: Message | CallbackQuery):
     """Main handler for manage tasks"""
     db = None
@@ -390,10 +392,13 @@ async def handle_task_manage(event: Message | CallbackQuery):
         text="\n".join(text)
         # Add cancel option to exit menu
         keyboard.inline_keyboard.append([InlineKeyboardButton(text="لغو", callback_data="teledo|cancel")])
+        # Add cancel option to exit menu
+        keyboard.inline_keyboard.append([InlineKeyboardButton(text="لغو", callback_data="teledo|cancel")])
         if isinstance(event, CallbackQuery):
             await event.message.edit_text(text=text, reply_markup=keyboard)
         else:
             await event.answer(text=text, reply_markup=keyboard)
+            await del_message(3, event)
             await del_message(3, event)
             await event.delete()
              
@@ -438,6 +443,11 @@ async def handle_view_task(callback_query: CallbackQuery, state: FSMContext = No
         admin = UserService.get_user(db, user_ID=task.admin_id)
         group = TaskService.get_group(db, task.group_id)
         topic = TaskService.get_topic(db=db, id=task.topic_id)
+        current_user = UserService.get_user(
+            db=db,
+            user_tID=str(callback_query.from_user.id),
+            username=callback_query.from_user.username,
+        )
         current_user = UserService.get_user(
             db=db,
             user_tID=str(callback_query.from_user.id),
@@ -541,6 +551,11 @@ async def handle_choose_status(callback_query: CallbackQuery):
             user_tID=str(callback_query.from_user.id),
             username=callback_query.from_user.username,
         )
+        user = UserService.get_user(
+            db=db,
+            user_tID=str(callback_query.from_user.id),
+            username=callback_query.from_user.username,
+        )
         is_admin = bool(user and user.is_admin)
         is_assigned = bool(user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=user.id)) if user else False
 
@@ -597,6 +612,11 @@ async def handle_change_status(callback_query: CallbackQuery):
 
         db = next(get_db())
         task = TaskService.get_task_by_id(db=db, id=task_id)
+        user = UserService.get_user(
+            db=db,
+            user_tID=str(callback_query.from_user.id),
+            username=callback_query.from_user.username,
+        )
         user = UserService.get_user(
             db=db,
             user_tID=str(callback_query.from_user.id),
@@ -1968,6 +1988,11 @@ async def handle_add_attachment(callback_query: CallbackQuery, state: FSMContext
             user_tID=str(callback_query.from_user.id),
             username=callback_query.from_user.username,
         )
+        user = UserService.get_user(
+            db=db,
+            user_tID=str(callback_query.from_user.id),
+            username=callback_query.from_user.username,
+        )
         is_admin = bool(user and user.is_admin)
         is_assigned = bool(user and TaskService.is_user_assigned(db=db, task_id=task_id, user_id=user.id)) if user else False
 
@@ -2063,6 +2088,11 @@ async def handle_new_attachment(message: Message, state: FSMContext):
                 user_tID=str(message.from_user.id),
                 username=message.from_user.username,
             )
+            adder_user = UserService.get_user(
+                db=db,
+                user_tID=str(message.from_user.id),
+                username=message.from_user.username,
+            )
             added_by_admin = bool(adder_user and adder_user.is_admin)
             await _send_attachment_notification(message, task, attachment_id, added_by_admin)
 
@@ -2094,6 +2124,11 @@ async def handle_get_attachments(callback_query: CallbackQuery):
         db = next(get_db())
 
         task = TaskService.get_task_by_id(db=db, id=task_id)
+        user = UserService.get_user(
+            db=db,
+            user_tID=str(callback_query.from_user.id),
+            username=callback_query.from_user.username,
+        )
         user = UserService.get_user(
             db=db,
             user_tID=str(callback_query.from_user.id),
@@ -2196,6 +2231,7 @@ async def handle_my_tasks(event: Message | CallbackQuery):
                 )
             ])
         keyboard_buttons.append([InlineKeyboardButton(text="لغو", callback_data="teledo|cancel")])
+        keyboard_buttons.append([InlineKeyboardButton(text="لغو", callback_data="teledo|cancel")])
         inline_keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
         # Send message with tasks
@@ -2239,8 +2275,10 @@ async def handle_my_tasks(event: Message | CallbackQuery):
 
 @router.message(F.text == "تسک های من")
 @router.message(Command("my_tasks"))
+@router.message(Command("my_tasks"))
 async def handle_my_tasks_message(message: Message):
     await handle_my_tasks(event=message)
+    await del_message(3, message)
     await del_message(3, message)
 
 @router.callback_query(F.data == "back_show")
@@ -2356,6 +2394,11 @@ async def handle_command_picker(message: Message):
             await del_message(3, em, message)
             return
 
+        if not message.reply_to_message:
+            em = await message.answer(t("commands_reply_required"))
+            await del_message(3, em, message)
+            return
+
         chat_member = None
         is_admin = False
         if is_group:
@@ -2367,6 +2410,7 @@ async def handle_command_picker(message: Message):
         else:
             # Private: trust DB check if available
             db = next(get_db())
+            is_admin = bool(UserService.is_admin(db=db, user_tID=str(message.from_user.id), username=message.from_user.username))
             is_admin = bool(UserService.is_admin(db=db, user_tID=str(message.from_user.id), username=message.from_user.username))
             db.close()
 
@@ -2397,8 +2441,21 @@ async def handle_command_picker(message: Message):
 
         reply = await message.answer(
             "\n".join(cmd_help_lines),
+        cmd_help_lines = [
+            "/add : افزودن تسک جدید بر اساس متن پیام ریپلای به عنوان عنوان.",
+            "/user : کاربرِ پیام ریپلای را برای افزودن به یک تسک موجود انتخاب می‌کند.",
+            "/title : متن ریپلای را به عنوان عنوان جدید یک تسک موجود ثبت می‌کند.",
+            "/desc : متن ریپلای را توضیح تسک می‌کند؛ اگر توضیح نداشت اضافه می‌شود و اگر داشت جایگزین می‌شود.",
+            "/time : زمان در پیام ریپلای (با تشخیص فرمت تاریخ) را برای یک تسک تنظیم می‌کند؛ در صورت نامعتبر بودن فرمت صحیح را نمایش می‌دهد.",
+            "/attach : پیام ریپلای (متن یا فایل) را به یک تسک موجود پیوست می‌کند و پیوست‌های قبلی را حذف نمی‌کند.",
+            "تمام این دستورات فقط روی پیام ریپلای کار می‌کنند.",
+        ]
+
+        reply = await message.answer(
+            "\n".join(cmd_help_lines),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
+        await del_message(3, reply, message)
         await del_message(3, reply, message)
     except Exception:
         logger.exception("Failed to send command picker")
@@ -2966,6 +3023,11 @@ async def short_edit_confirm(callback_query: CallbackQuery):
 
             # Send notifications with only new files
             task = TaskService.get_task_by_id(db=db, id=task_id)
+            adder_user = UserService.get_user(
+                db=db,
+                user_tID=str(callback_query.from_user.id),
+                username=callback_query.from_user.username,
+            )
             adder_user = UserService.get_user(
                 db=db,
                 user_tID=str(callback_query.from_user.id),
