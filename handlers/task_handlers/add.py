@@ -21,8 +21,6 @@ CANCEL_TEXT = t("btn_cancel")
 @router.message(Command("add"), chat_type_filter(ChatType.SUPERGROUP))
 @router.message(F.text == "افزودن تسک", chat_type_filter(ChatType.GROUP))
 @router.message(F.text == "افزودن تسک", chat_type_filter(ChatType.SUPERGROUP))
-@router.message(F.text == "افزودن تسک", chat_type_filter(ChatType.GROUP))
-@router.message(F.text == "افزودن تسک", chat_type_filter(ChatType.SUPERGROUP))
 async def add_task(message: Message):
     db = None
     try:
@@ -51,11 +49,6 @@ async def add_task(message: Message):
             return
         
         # Check if user exists in DB and is admin
-        user = UserService.get_user(
-            db=db,
-            user_tID=str(message.from_user.id),
-            username=message.from_user.username,
-        )
         user = UserService.get_user(
             db=db,
             user_tID=str(message.from_user.id),
@@ -123,17 +116,11 @@ class AddTaskStates(StatesGroup):
 
 @router.message(Command("add"), chat_type_filter(ChatType.PRIVATE))
 @router.message(F.text == "افزودن تسک", chat_type_filter(ChatType.PRIVATE))
-@router.message(F.text == "افزودن تسک", chat_type_filter(ChatType.PRIVATE))
 async def add_task_in_private(message: Message, state: FSMContext):
     try:
         db = next(get_db())  # Open database session
 
         # Check if user exists in DB and is admin
-        user = UserService.get_user(
-            db=db,
-            user_tID=str(message.from_user.id),
-            username=message.from_user.username,
-        )
         user = UserService.get_user(
             db=db,
             user_tID=str(message.from_user.id),
@@ -247,12 +234,9 @@ async def cancel_add_task(message: Message, state: FSMContext):
 
         # Send cancellation message
         cancel_msg = await message.answer(
-        cancel_msg = await message.answer(
             t("task_add_cancelled"),
             reply_markup=keyboard
         )
-        # Schedule deletion of the cancel notice as well
-        await del_message(3, cancel_msg)
         # Schedule deletion of the cancel notice as well
         await del_message(3, cancel_msg)
         
