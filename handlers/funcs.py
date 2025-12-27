@@ -55,14 +55,8 @@ def get_main_menu_keyboard(chat_type: ChatType, is_admin: bool = False) -> Reply
             ])
             keyboards.append(
             [
-                KeyboardButton(text="مدیریت تسک ها"), 
-                
-            ])
-            keyboards.append(
-            [
-                KeyboardButton(text="افزودن تسک"),
+                KeyboardButton(text="مدیریت تسک ها"),
                 KeyboardButton(text="مدیریت کاربران"),
-                
             ])
         
         else:

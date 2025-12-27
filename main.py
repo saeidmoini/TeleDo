@@ -82,42 +82,11 @@ else:
 # Set commands
 async def set_commands(bot: Bot):
     """
-    Register command menus for users and admins.
-    - Default scope: keep the original private chat menus.
-    - Group scopes: admins see task management shortcuts, members only see /attach.
+    Register command menus so bot and group share the same command set.
+    - Default scope now mirrors group admin commands.
+    - Group scopes keep a trimmed list for non-admin members.
     """
-    user_commands = [
-        BotCommand(
-            command="/my_tasks",
-            description=t("cmd_user_tasks_desc"),
-        ),
-    ]
-
-    admin_commands = [
-        BotCommand(
-            command="/teledo",
-            description="منوی دستورات",
-        ),
-        BotCommand(
-            command="/tasks_management",
-            description=t("cmd_admin_tasks_desc"),
-        ),
-        BotCommand(
-            command="/users_management",
-            description=t("cmd_admin_users_desc"),
-        ),
-        BotCommand(
-            command="/my_tasks",
-            description=t("cmd_user_tasks_desc"),
-        ),
-    ]
-
-    group_user_commands = [
-        BotCommand(command="/teledo", description="منوی دستورات"),
-        BotCommand(command="/attach", description="افزودن فایل به تسک"),
-    ]
-
-    group_admin_commands = [
+    shared_commands = [
         BotCommand(command="/teledo", description="منوی دستورات"),
         BotCommand(command="/add", description="ایجاد تسک جدید"),
         BotCommand(command="/user", description="افزودن کاربر به تسک"),
@@ -127,10 +96,15 @@ async def set_commands(bot: Bot):
         BotCommand(command="/attach", description="افزودن فایل به تسک"),
     ]
 
+    group_user_commands = [
+        BotCommand(command="/teledo", description="منوی دستورات"),
+        BotCommand(command="/attach", description="افزودن فایل به تسک"),
+    ]
+
     try:
-        await bot.set_my_commands(user_commands, scope=BotCommandScopeDefault())
+        await bot.set_my_commands(shared_commands, scope=BotCommandScopeDefault())
     except Exception:
-        logger.exception("Failed to set default (user) commands")
+        logger.exception("Failed to set default commands")
 
     try:
         await bot.set_my_commands(group_user_commands, scope=BotCommandScopeAllGroupChats())
@@ -138,7 +112,7 @@ async def set_commands(bot: Bot):
         logger.exception("Failed to set default group commands")
 
     try:
-        await bot.set_my_commands(group_admin_commands, scope=BotCommandScopeAllChatAdministrators())
+        await bot.set_my_commands(shared_commands, scope=BotCommandScopeAllChatAdministrators())
     except Exception:
         logger.exception("Failed to set admin group commands")
 
@@ -165,7 +139,7 @@ async def set_commands(bot: Bot):
     for admin_chat_id in admin_chat_ids:
         try:
             await bot.set_my_commands(
-                admin_commands, scope=BotCommandScopeChat(chat_id=admin_chat_id)
+                shared_commands, scope=BotCommandScopeChat(chat_id=admin_chat_id)
             )
         except Exception:
             logger.exception("Failed to set admin commands for chat %s", admin_chat_id)

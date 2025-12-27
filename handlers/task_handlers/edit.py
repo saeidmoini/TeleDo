@@ -175,36 +175,85 @@ def chunk_list(lst:list, chunk_size: int) -> List[List] | None:
     return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
 
-def task_manage_keyboard(db) -> Tuple[List[str], InlineKeyboardMarkup]:
+def task_manage_keyboard(
+    db,
+    group_id: int | None = None,
+    topic_id: int | None = None,
+    group_name: str | None = None,
+    topic_name: str | None = None,
+) -> Tuple[List[str], InlineKeyboardMarkup]:
     text = []
     keyboard = InlineKeyboardMarkup(inline_keyboard=[])
     
-    groups = TaskService.get_all_groups(db=db)
-    if groups is None:
-        text.append("⚠️ هیچ گروهی برای نمایش وجود ندارد ⚠️")
-        tasks = TaskService.get_all_tasks(db=db)
-        if tasks is None:
-            text.append("⚠️ هیچ تسکی برای نمایش وجود ندارد ⚠️")
-        else:
-            text.append(f"تسک ها : \n تعداد: {len(groups)}")
-            keyboard.inline_keyboard.extend(
-                [
-                    [InlineKeyboardButton(text=b.title, callback_data=f"view_task|{b.id}") for b in c]
-                    for c in chunk_list(tasks, 2)
-                ]
-            )
-    
-    else:
-        text.append(f"گروه ها : \n تعداد: {len(groups)}")
+    # If we are inside a specific topic, only show tasks from that topic.
+    if topic_id is not None:
+        tasks = TaskService.get_all_tasks(db=db, topic_id=topic_id) or []
+        title = f"تسک های تاپیک {topic_name}" if topic_name else "تسک های این تاپیک"
+        text.append(title)
+        text.append(f"تعداد: {len(tasks)}")
         keyboard.inline_keyboard.extend(
             [
-                [InlineKeyboardButton(text=b.name, callback_data=f"view_group|{b.id}") for b in c]
-                for c in chunk_list(groups, 2)
+                [InlineKeyboardButton(text=task.title, callback_data=f"view_task|{task.id}") for task in chunk]
+                for chunk in chunk_list(tasks, 2) or []
             ]
         )
-        keyboard.inline_keyboard.append(
-            [InlineKeyboardButton(text="سایر ...", callback_data=f"view_group|OTHER")]
-        )
+        return text, keyboard
+
+    # If we are scoped to a single group, list that group's topics/tasks only.
+    if group_id is not None:
+        topics = TaskService.get_all_topics(db=db, group_id=group_id) or []
+        if topics:
+            text.append(f"تاپیک های گروه {group_name}" if group_name else "تاپیک های گروه")
+            text.append(f"تعداد: {len(topics)}")
+            keyboard.inline_keyboard.extend(
+                [
+                    [InlineKeyboardButton(text=tp.name, callback_data=f"view_topic|{tp.id}") for tp in chunk]
+                    for chunk in chunk_list(topics, 2) or []
+                ]
+            )
+            keyboard.inline_keyboard.append(
+                [
+                    InlineKeyboardButton(text="باز گشت 🔙", callback_data="back"),
+                    InlineKeyboardButton(text="سایر ...", callback_data=f"view_topic|OTHER|{group_id}"),
+                ]
+            )
+        else:
+            tasks = TaskService.get_all_tasks(db=db, group_id=group_id) or []
+            text.append(f"تسک های گروه {group_name}" if group_name else "تسک های گروه")
+            text.append(f"تعداد: {len(tasks)}")
+            keyboard.inline_keyboard.extend(
+                [
+                    [InlineKeyboardButton(text=task.title, callback_data=f"view_task|{task.id}") for task in chunk]
+                    for chunk in chunk_list(tasks, 2) or []
+                ]
+            )
+            keyboard.inline_keyboard.append([InlineKeyboardButton(text="باز گشت 🔙", callback_data="back")])
+        return text, keyboard
+
+    groups = TaskService.get_all_groups(db=db)
+    if not groups:
+        text.append("⚠️ هیچ گروهی برای نمایش وجود ندارد ⚠️")
+        tasks = TaskService.get_all_tasks(db=db) or []
+        if tasks:
+            text.append(f"تسک ها : \n تعداد: {len(tasks)}")
+            keyboard.inline_keyboard.extend(
+                [
+                    [InlineKeyboardButton(text=task.title, callback_data=f"view_task|{task.id}") for task in chunk]
+                    for chunk in chunk_list(tasks, 2) or []
+                ]
+            )
+        return text, keyboard
+
+    text.append(f"گروه ها : \n تعداد: {len(groups)}")
+    keyboard.inline_keyboard.extend(
+        [
+            [InlineKeyboardButton(text=b.name, callback_data=f"view_group|{b.id}") for b in c]
+            for c in chunk_list(groups, 2)
+        ]
+    )
+    keyboard.inline_keyboard.append(
+        [InlineKeyboardButton(text="سایر ...", callback_data=f"view_group|OTHER")]
+    )
 
     return text, keyboard
 
@@ -384,8 +433,32 @@ async def handle_task_manage(event: Message | CallbackQuery):
         permission = await admin_require(db, event)
         if not permission:
             return
-        
-        text, keyboard = task_manage_keyboard(db=db)
+
+        # Detect current chat/thread context to scope listings
+        msg = event.message if isinstance(event, CallbackQuery) else event
+        topic_ctx = None
+        group_ctx = None
+        topic_name = None
+        group_name = None
+        if msg.chat.type in ("group", "supergroup"):
+            if getattr(msg, "is_topic_message", False):
+                topic_ctx = TaskService.get_topic(db=db, tID=str(msg.message_thread_id))
+                if topic_ctx:
+                    topic_name = topic_ctx.name
+                    group_ctx = TaskService.get_group(db=db, id=topic_ctx.group_id) if topic_ctx.group_id else None
+                    group_name = group_ctx.name if group_ctx else None
+            else:
+                group_ctx = TaskService.get_group(db=db, tID=str(msg.chat.id))
+                group_name = group_ctx.name if group_ctx else None
+
+        # Build keyboard scoped to topic/group when applicable
+        text, keyboard = task_manage_keyboard(
+            db=db,
+            group_id=group_ctx.id if group_ctx else None,
+            topic_id=topic_ctx.id if topic_ctx else None,
+            group_name=group_name,
+            topic_name=topic_name,
+        )
 
         text="\n".join(text)
         # Add cancel option to exit menu
@@ -2250,18 +2323,27 @@ async def handle_my_tasks_callback(callback: CallbackQuery):
 
 @router.message(Command("teledo"))
 async def handle_teledo_menu(message: Message):
-    """Show Teledo menu in groups/supergroups (non-reply)."""
+    """Show Teledo menu for admins in groups, supergroups, or private chats."""
+    db = None
     try:
-        if message.chat.type not in ("group", "supergroup"):
+        db = next(get_db())
+
+        # Determine admin status based on chat type
+        if message.chat.type in ("group", "supergroup"):
+            chat_member = await message.bot.get_chat_member(
+                chat_id=message.chat.id,
+                user_id=message.from_user.id,
+            )
+            is_admin = chat_member.status in ["administrator", "creator"]
+        elif message.chat.type == "private":
+            is_admin = bool(
+                UserService.is_admin(
+                    db=db, user_tID=str(message.from_user.id), username=message.from_user.username
+                )
+            )
+        else:
             await message.answer(t("only_group_command"))
             return
-
-        # Determine admin status via chat membership
-        chat_member = await message.bot.get_chat_member(
-            chat_id=message.chat.id,
-            user_id=message.from_user.id,
-        )
-        is_admin = chat_member.status in ["administrator", "creator"]
 
         if not is_admin:
             em = await message.answer(t("teledo_admin_only"))
@@ -2277,19 +2359,38 @@ async def handle_teledo_menu(message: Message):
             await message.answer(t("generic_error"))
         except Exception:
             logger.exception("Failed to send teledo menu fallback")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db in teledo menu")
 
 
 @router.callback_query(F.data.startswith("teledo|"))
 async def handle_teledo_callbacks(callback_query: CallbackQuery):
     """Handle Teledo menu callbacks."""
     action = callback_query.data.split("|", 1)[1] if "|" in callback_query.data else ""
+    db = None
     try:
-        # Fetch chat admin status
-        chat_member = await callback_query.bot.get_chat_member(
-            chat_id=callback_query.message.chat.id,
-            user_id=callback_query.from_user.id,
-        )
-        is_admin = chat_member.status in ["administrator", "creator"]
+        db = next(get_db())
+
+        chat_type = callback_query.message.chat.type
+        if chat_type in ("group", "supergroup"):
+            chat_member = await callback_query.bot.get_chat_member(
+                chat_id=callback_query.message.chat.id,
+                user_id=callback_query.from_user.id,
+            )
+            is_admin = chat_member.status in ["administrator", "creator"]
+        elif chat_type == "private":
+            is_admin = bool(
+                UserService.is_admin(
+                    db=db, user_tID=str(callback_query.from_user.id), username=callback_query.from_user.username
+                )
+            )
+        else:
+            await callback_query.answer(t("invalid_command"))
+            return
 
         if not is_admin:
             await callback_query.answer(t("teledo_admin_only"), show_alert=True)
@@ -2342,6 +2443,12 @@ async def handle_teledo_callbacks(callback_query: CallbackQuery):
             await callback_query.answer(t("generic_error"), show_alert=True)
         except Exception:
             logger.exception("Failed to send teledo callback fallback")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                logger.exception("Failed to close db in teledo callback")
 # ===== Command Picker (prefills input instead of sending) =====
 @router.message(Command("commands"))
 @router.message(Command("menu"))
